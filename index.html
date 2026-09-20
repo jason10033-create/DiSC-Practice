@@ -3,249 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DISC 行為風格測評</title>
-<style>
-  :root {
-    --bg:#f5f6fa; --card:#fff; --text:#1f2430; --muted:#6b7280; --line:#e5e7eb;
-    --D:#e5484d; --I:#f5a524; --S:#2fa66a; --C:#3b82f6; --accent:#4f46e5;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg:#12141a; --card:#1c1f28; --text:#eceef4; --muted:#9aa1b0; --line:#2c303c; }
-  }
-  * { box-sizing:border-box; }
-  body { margin:0; background:var(--bg); color:var(--text);
-    font-family:"Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif; line-height:1.6; }
-  .wrap { max-width:760px; margin:0 auto; padding:24px 16px 64px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:28px; }
-  .footer-img { display:block; width:100%; max-width:720px; height:auto; margin:32px auto 0; border-radius:12px; }
-  h1 { margin:0 0 8px; font-size:28px; }
-  h2 { margin:0 0 4px; font-size:20px; }
-  p { margin:8px 0; }
-  .muted { color:var(--muted); font-size:14px; }
-  .quad { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:20px 0; }
-  .quad div { border-radius:12px; padding:14px 6px; text-align:center; color:#fff; font-weight:700; }
-  .quad small { display:block; font-weight:400; opacity:.9; }
-  button { font:inherit; cursor:pointer; border:0; border-radius:10px; padding:12px 24px;
-    background:var(--accent); color:#fff; font-weight:600; }
-  button.ghost { background:transparent; color:var(--text); border:1px solid var(--line); }
-  button:disabled { opacity:.4; cursor:not-allowed; }
-  .bar { height:8px; background:var(--line); border-radius:99px; overflow:hidden; margin:12px 0 20px; }
-  .bar i { display:block; height:100%; background:var(--accent); width:0; transition:width .3s; }
-  table { width:100%; border-collapse:collapse; margin:12px 0; }
-  th { font-size:13px; color:var(--muted); font-weight:500; padding:4px 8px; }
-  td { padding:10px 8px; border-top:1px solid var(--line); }
-  td.pick { text-align:center; width:64px; }
-  input[type=radio] { width:20px; height:20px; accent-color:var(--accent); cursor:pointer; }
-  input[type=radio]:disabled { opacity:.25; cursor:not-allowed; }
-  .row { display:flex; justify-content:space-between; gap:12px; margin-top:16px; flex-wrap:wrap; }
-  .res-bar { display:flex; align-items:center; gap:10px; margin:10px 0; }
-  .res-bar b { width:110px; flex:none; }
-  .res-bar .track { flex:1; height:22px; background:var(--line); border-radius:8px; overflow:hidden; }
-  .res-bar .fill { height:100%; border-radius:8px; }
-  .res-bar span { width:44px; text-align:right; font-variant-numeric:tabular-nums; }
-  .tag { display:inline-block; color:#fff; border-radius:8px; padding:2px 10px; font-weight:700; margin-right:6px; }
-  ul { padding-left:20px; margin:6px 0; }
-  input[type=text] { display:block; width:100%; font:inherit; margin-top:8px; padding:12px 14px;
-    border:1px solid var(--line); border-radius:10px; background:var(--bg); color:var(--text); }
-  input[type=text]:focus { outline:2px solid var(--accent); border-color:transparent; }
-  .hidden { display:none; }
-  @media print { button, .bar { display:none; } body { background:#fff; } }
-</style>
+<title>DiSC 人際風格工作坊</title>
+<link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<div class="wrap">
+<header class="topbar"><div class="topbar-in">
+  <a class="brand" href="#/"><span class="logo"><i></i><i></i><i></i><i></i></span><span>DiSC 人際風格工作坊</span></a>
+  <span class="spacer"></span>
+  <button class="ghost icon" id="themeBtn" title="切換淺色／深色">🌙</button>
+</div></header>
 
-  <section id="intro" class="card">
-    <h1>DISC 行為風格測評</h1>
-    <p class="muted">約 3–5 分鐘 · 10 題 · 結果僅在你的瀏覽器中計算，不會上傳。</p>
-    <div class="quad">
-      <div style="background:var(--D)">D<small>主導型</small></div>
-      <div style="background:var(--I)">I<small>影響型</small></div>
-      <div style="background:var(--S)">S<small>穩健型</small></div>
-      <div style="background:var(--C)">C<small>謹慎型</small></div>
-    </div>
-    <h2>作答方式</h2>
-    <ul>
-      <li>每題有 4 個形容詞，請選出<b>最像你</b>與<b>最不像你</b>的各一個。</li>
-      <li>請依「工作或日常中的自然反應」作答，而非你希望成為的樣子。</li>
-      <li>沒有對錯，也沒有好壞的風格。</li>
-    </ul>
-    <p class="muted">本測評為自行設計的 DISC 概念工具，僅供自我探索與團隊溝通參考，並非官方 DiSC® 或專業心理診斷。</p>
-    <label for="userName"><b>請輸入你的姓名</b></label>
-    <input id="userName" type="text" maxlength="30" placeholder="例如：王小明" autocomplete="name">
-    <div class="row"><span class="muted" id="nameHint"></span><button id="start" disabled>開始測評</button></div>
-  </section>
+<main class="wrap" id="app"><p class="muted">載入中…</p></main>
 
-  <section id="quiz" class="card hidden">
-    <div class="muted" id="progressText"></div>
-    <div class="bar"><i id="progressBar"></i></div>
-    <h2>哪一個最像你？哪一個最不像你？</h2>
-    <table>
-      <thead><tr><th style="text-align:left">形容詞</th><th>最像</th><th>最不像</th></tr></thead>
-      <tbody id="options"></tbody>
-    </table>
-    <div class="row">
-      <button class="ghost" id="prev">上一題</button>
-      <button id="next" disabled>下一題</button>
-    </div>
-  </section>
+<footer class="wrap" style="padding-top:0">
+  <img src="人類圖-1-1.webp" alt="DiSC 性格組成：支配型、影響型、穩健型、分析型" style="display:block;width:100%;max-width:720px;margin:0 auto;border-radius:12px">
+  <p class="muted small" style="text-align:center;margin-top:16px">
+    本工具為工作坊學習輔助，測評結果僅供自我探索與溝通參考，並非官方 Everything DiSC® 或專業心理診斷。
+    · <a href="admin.html">管理後台</a></p>
+</footer>
 
-  <section id="result" class="card hidden"></section>
-
-  <img class="footer-img" src="人類圖-1-1.webp" alt="DISC 性格組成：支配型、影響型、穩健型、分析型">
-
-</div>
-
-<script>
-const TYPES = {
-  D:{name:"主導型 Dominance",color:"var(--D)",
-     summary:"你重視結果與速度，喜歡掌控局面、迎接挑戰，做決定果斷直接。",
-     strengths:["行動力強、決策迅速","敢於承擔風險與責任","目標導向，能推動事情向前"],
-     watch:["可能顯得強勢或缺乏耐心","容易忽略他人感受與細節"],
-     tips:"溝通時：直接講重點與結果，給予選擇與自主權。"},
-  I:{name:"影響型 Influence",color:"var(--I)",
-     summary:"你熱情外向、善於表達，重視人際互動與被認可，能帶動團隊氣氛。",
-     strengths:["感染力強、善於激勵他人","樂觀、富創意","擅長建立人脈與說服"],
-     watch:["可能不夠專注於細節與執行","容易衝動或難以按時完成"],
-     tips:"溝通時：保持友善與熱度，給予肯定，並留空間讓對方發表想法。"},
-  S:{name:"穩健型 Steadiness",color:"var(--S)",
-     summary:"你耐心可靠、重視和諧與合作，是團隊中穩定、體貼的支持力量。",
-     strengths:["善於傾聽、值得信賴","穩定持久、忠誠","能化解衝突、支持他人"],
-     watch:["面對變動可能較慢適應","不易表達異議或拒絕他人"],
-     tips:"溝通時：給予充分時間與安全感，說明變動的原因並循序漸進。"},
-  C:{name:"謹慎型 Conscientiousness",color:"var(--C)",
-     summary:"你重視品質、邏輯與正確性，做事有條理，決策前會仔細分析。",
-     strengths:["嚴謹精確、注重細節","分析力與規劃力強","遵守標準，品質穩定"],
-     watch:["可能過度追求完美而拖延","顯得挑剔或較不易表達情感"],
-     tips:"溝通時：提供事實與數據，給予思考時間，保持條理清楚。"}
-};
-
-const WORDS = {
-  D:["果斷","直接","強勢","好競爭","有決心","敢冒險","追求結果","獨立","自信","愛主導","大膽","坦率","急性子","要求高","行動導向","愛挑戰","有魄力","堅定","勇於承擔","重效率"],
-  I:["熱情","外向","樂觀","健談","有說服力","活潑","愛社交","幽默","富想像力","鼓舞人心","親切","有感染力","愛表達","隨性","好玩","充滿活力","善於激勵","開朗","喜歡被讚賞","創意十足"],
-  S:["耐心","體貼","穩定","忠誠","好相處","善於傾聽","溫和","可靠","支持他人","謙和","平靜","包容","願意配合","知足","重和諧","持之以恆","細心關懷","低調","守信","不愛衝突"],
-  C:["謹慎","精確","有條理","善分析","講邏輯","完美主義","重細節","守規則","客觀","嚴謹","理性","重品質","有系統","愛思考","保守","注重事實","按部就班","審慎","講求準確","自律"]
-};
-
-function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
-
-const N = 10;
-const questions = Array.from({length:N},(_,i)=>
-  shuffle(["D","I","S","C"]).map(t=>({t,w:WORDS[t][i]})));
-const answers = Array.from({length:N},()=>({most:null,least:null}));
-let cur = 0;
-
-const $ = id => document.getElementById(id);
-const show = id => ["intro","quiz","result"].forEach(s=>$(s).classList.toggle("hidden",s!==id));
-
-function render(){
-  $("progressText").textContent = `第 ${cur+1} / ${N} 題`;
-  $("progressBar").style.width = (cur/N*100)+"%";
-  const a = answers[cur];
-  $("options").innerHTML = questions[cur].map((o,k)=>`
-    <tr><td>${o.w}</td>
-      <td class="pick"><input type="radio" name="most" value="${k}" ${a.most===k?"checked":""} ${a.least===k?"disabled":""}></td>
-      <td class="pick"><input type="radio" name="least" value="${k}" ${a.least===k?"checked":""} ${a.most===k?"disabled":""}></td>
-    </tr>`).join("");
-  $("prev").disabled = cur===0;
-  $("next").textContent = cur===N-1 ? "查看結果" : "下一題";
-  $("next").disabled = a.most===null || a.least===null;
-}
-
-$("options").addEventListener("change",e=>{
-  const el=e.target; if(el.type!=="radio") return;
-  answers[cur][el.name] = +el.value;
-  render();
-});
-let userName = "";
-const esc = s => s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-$("userName").addEventListener("input",e=>{
-  $("start").disabled = e.target.value.trim()==="";
-});
-$("userName").addEventListener("keydown",e=>{
-  if(e.key==="Enter" && !$("start").disabled) $("start").click();
-});
-$("start").onclick = ()=>{
-  userName = $("userName").value.trim();
-  if(!userName) return;
-  show("quiz"); render();
-};
-$("prev").onclick = ()=>{ if(cur>0){cur--;render();} };
-$("next").onclick = ()=>{ if(cur<N-1){cur++;render();} else finish(); };
-
-function finish(){
-  const raw = {D:0,I:0,S:0,C:0};
-  answers.forEach((a,i)=>{
-    raw[questions[i][a.most].t]++;
-    raw[questions[i][a.least].t]--;
-  });
-  // 範圍 -N..N 轉成 0..100
-  const score = {};
-  for(const t in raw) score[t] = Math.round((raw[t]+N)/(2*N)*100);
-  const order = Object.keys(score).sort((a,b)=>score[b]-score[a]);
-  const top = order[0];
-  const second = score[order[1]] >= score[top]-8 ? order[1] : null; // 接近則視為混合風格
-  const primary = second ? [top,second] : [top];
-
-  const bars = order.map(t=>`
-    <div class="res-bar"><b>${t} ${TYPES[t].name.split(" ")[0]}</b>
-      <div class="track"><div class="fill" style="width:${score[t]}%;background:${TYPES[t].color}"></div></div>
-      <span>${score[t]}</span></div>`).join("");
-
-  const detail = primary.map(t=>{
-    const x=TYPES[t];
-    return `<h2 style="margin-top:20px"><span class="tag" style="background:${x.color}">${t}</span>${x.name}</h2>
-      <p>${x.summary}</p>
-      <b>優勢</b><ul>${x.strengths.map(s=>`<li>${s}</li>`).join("")}</ul>
-      <b>需留意</b><ul>${x.watch.map(s=>`<li>${s}</li>`).join("")}</ul>
-      <p><b>💬 ${x.tips}</b></p>`;
-  }).join("");
-
-  $("result").innerHTML = `
-    <p class="muted" style="margin:0">${esc(userName)} 的測評結果</p>
-    <h1>你的風格：${primary.join(" / ")}</h1>
-    <p class="muted">${second?"你的前兩項分數接近，屬於混合風格。":"你有明顯偏好的主要風格。"}分數越高代表該傾向越明顯（0–100）。</p>
-    ${bars}${detail}
-    <p class="muted" style="margin-top:24px">DISC 描述的是行為傾向，會隨情境而變，且每個人都同時具有四種面向。結果僅供參考。</p>
-    <div class="row"><button class="ghost" onclick="window.print()">列印 / 存成 PDF</button>
-      <button id="again">重新測評</button></div>`;
-  $("again").onclick = ()=>location.reload();
-  show("result");
-  window.scrollTo(0,0);
-  saveResult(score, primary);
-}
-
-// ===== Supabase（專案：Test0920）=====
-const SUPABASE_URL = "https://rgtgwmbbbdbygasoknuv.supabase.co";
-const SUPABASE_KEY = "sb_publishable_DjB0CSECYgCGf4dS1HMuLA_wSjnFah7"; // 公開金鑰，資料表以 RLS 限制為僅可新增
-
-async function saveResult(score, primary){
-  const note = document.createElement("p");
-  note.className = "muted";
-  note.textContent = "正在儲存結果…";
-  $("result").appendChild(note);
-  try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/disc_results`, {
-      method:"POST",
-      headers:{
-        "apikey":SUPABASE_KEY,
-        "Authorization":`Bearer ${SUPABASE_KEY}`,
-        "Content-Type":"application/json",
-        "Prefer":"return=minimal"
-      },
-      body:JSON.stringify({
-        user_name:userName,
-        score_d:score.D, score_i:score.I, score_s:score.S, score_c:score.C,
-        primary_types:primary
-      })
-    });
-    if(!res.ok) throw new Error(await res.text());
-    note.textContent = "✅ 結果已儲存。";
-  } catch(err){
-    console.error(err);
-    note.textContent = "⚠️ 結果儲存失敗，請檢查網路後重新測評。";
-  }
-}
-</script>
+<script src="js/common.js"></script>
+<script src="js/app.js"></script>
 </body>
 </html>
