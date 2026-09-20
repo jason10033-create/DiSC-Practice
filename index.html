@@ -57,7 +57,7 @@
 
   <section id="intro" class="card">
     <h1>DISC 行為風格測評</h1>
-    <p class="muted">約 5–8 分鐘 · 20 題 · 結果僅在你的瀏覽器中計算，不會上傳。</p>
+    <p class="muted">約 3–5 分鐘 · 10 題 · 結果僅在你的瀏覽器中計算，不會上傳。</p>
     <div class="quad">
       <div style="background:var(--D)">D<small>主導型</small></div>
       <div style="background:var(--I)">I<small>影響型</small></div>
@@ -129,7 +129,7 @@ const WORDS = {
 
 function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
 
-const N = 20;
+const N = 10;
 const questions = Array.from({length:N},(_,i)=>
   shuffle(["D","I","S","C"]).map(t=>({t,w:WORDS[t][i]})));
 const answers = Array.from({length:N},()=>({most:null,least:null}));
