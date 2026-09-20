@@ -45,6 +45,9 @@
   .res-bar span { width:44px; text-align:right; font-variant-numeric:tabular-nums; }
   .tag { display:inline-block; color:#fff; border-radius:8px; padding:2px 10px; font-weight:700; margin-right:6px; }
   ul { padding-left:20px; margin:6px 0; }
+  input[type=text] { display:block; width:100%; font:inherit; margin-top:8px; padding:12px 14px;
+    border:1px solid var(--line); border-radius:10px; background:var(--bg); color:var(--text); }
+  input[type=text]:focus { outline:2px solid var(--accent); border-color:transparent; }
   .hidden { display:none; }
   @media print { button, .bar { display:none; } body { background:#fff; } }
 </style>
@@ -68,7 +71,9 @@
       <li>沒有對錯，也沒有好壞的風格。</li>
     </ul>
     <p class="muted">本測評為自行設計的 DISC 概念工具，僅供自我探索與團隊溝通參考，並非官方 DiSC® 或專業心理診斷。</p>
-    <div class="row"><span></span><button id="start">開始測評</button></div>
+    <label for="userName"><b>請輸入你的姓名</b></label>
+    <input id="userName" type="text" maxlength="30" placeholder="例如：王小明" autocomplete="name">
+    <div class="row"><span class="muted" id="nameHint"></span><button id="start" disabled>開始測評</button></div>
   </section>
 
   <section id="quiz" class="card hidden">
@@ -152,7 +157,19 @@ $("options").addEventListener("change",e=>{
   answers[cur][el.name] = +el.value;
   render();
 });
-$("start").onclick = ()=>{ show("quiz"); render(); };
+let userName = "";
+const esc = s => s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+$("userName").addEventListener("input",e=>{
+  $("start").disabled = e.target.value.trim()==="";
+});
+$("userName").addEventListener("keydown",e=>{
+  if(e.key==="Enter" && !$("start").disabled) $("start").click();
+});
+$("start").onclick = ()=>{
+  userName = $("userName").value.trim();
+  if(!userName) return;
+  show("quiz"); render();
+};
 $("prev").onclick = ()=>{ if(cur>0){cur--;render();} };
 $("next").onclick = ()=>{ if(cur<N-1){cur++;render();} else finish(); };
 
@@ -185,6 +202,7 @@ function finish(){
   }).join("");
 
   $("result").innerHTML = `
+    <p class="muted" style="margin:0">${esc(userName)} 的測評結果</p>
     <h1>你的風格：${primary.join(" / ")}</h1>
     <p class="muted">${second?"你的前兩項分數接近，屬於混合風格。":"你有明顯偏好的主要風格。"}分數越高代表該傾向越明顯（0–100）。</p>
     ${bars}${detail}
@@ -194,6 +212,39 @@ function finish(){
   $("again").onclick = ()=>location.reload();
   show("result");
   window.scrollTo(0,0);
+  saveResult(score, primary);
+}
+
+// ===== Supabase（專案：Test0920）=====
+const SUPABASE_URL = "https://rgtgwmbbbdbygasoknuv.supabase.co";
+const SUPABASE_KEY = "sb_publishable_DjB0CSECYgCGf4dS1HMuLA_wSjnFah7"; // 公開金鑰，資料表以 RLS 限制為僅可新增
+
+async function saveResult(score, primary){
+  const note = document.createElement("p");
+  note.className = "muted";
+  note.textContent = "正在儲存結果…";
+  $("result").appendChild(note);
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/disc_results`, {
+      method:"POST",
+      headers:{
+        "apikey":SUPABASE_KEY,
+        "Authorization":`Bearer ${SUPABASE_KEY}`,
+        "Content-Type":"application/json",
+        "Prefer":"return=minimal"
+      },
+      body:JSON.stringify({
+        user_name:userName,
+        score_d:score.D, score_i:score.I, score_s:score.S, score_c:score.C,
+        primary_types:primary
+      })
+    });
+    if(!res.ok) throw new Error(await res.text());
+    note.textContent = "✅ 結果已儲存。";
+  } catch(err){
+    console.error(err);
+    note.textContent = "⚠️ 結果儲存失敗，請檢查網路後重新測評。";
+  }
 }
 </script>
 </body>
