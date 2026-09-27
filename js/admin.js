@@ -24,9 +24,9 @@ $("#logout").onclick = () => { store.del("admin_pw"); PW = null; loginView(); };
 
 /* ---------- 版型 ---------- */
 const NAV = [
-  ["settings", "⚙️ 基本設定"], ["_", "解密工具"], ["tools", "📖 教材管理"],
-  ["_", "看懂自己"], ["self", "🪞 題目與設定"], ["results", "👥 填答者結果"], ["report", "📊 彙總報表"], ["logicSelf", "🧮 計分邏輯"],
-  ["_", "識別他人"], ["others", "🔍 題目管理"], ["logicOthers", "🧮 計分邏輯"],
+  ["settings", "⚙️ 基本設定"], ["home", "🏠 首頁內容"], ["_", "解密工具"], ["tools", "📖 教材管理"],
+  ["_", "看懂自己"], ["introSelf", "✍️ 測評開頭文字"], ["self", "🪞 題目與設定"], ["results", "👥 填答者結果"], ["report", "📊 彙總報表"], ["logicSelf", "🧮 計分邏輯"],
+  ["_", "識別他人"], ["introOthers", "✍️ 測評開頭文字"], ["others", "🔍 題目管理"], ["logicOthers", "🧮 計分邏輯"],
   ["_", "彈性調適"], ["types", "🧭 四型基本應對"], ["combos", "🎛️ 應對神器建議"]
 ];
 function shell() {
@@ -37,7 +37,7 @@ function shell() {
 async function boot() { CFG = await A("admin_get_config"); shell(); render(); }
 async function render() {
   const v = $("#view"); v.innerHTML = `<p class="muted">載入中…</p>`;
-  try { await ({ settings: vSettings, tools: vTools, self: () => vQuestions("self"), others: () => vQuestions("others"), results: vResults, report: vReport, logicSelf: () => vLogic("self"), logicOthers: () => vLogic("others"), types: vTypes, combos: vCombos }[view])(); }
+  try { await ({ settings: vSettings, home: vHome, introSelf: () => vIntro("self"), introOthers: () => vIntro("others"), tools: vTools, self: () => vQuestions("self"), others: () => vQuestions("others"), results: vResults, report: vReport, logicSelf: () => vLogic("self"), logicOthers: () => vLogic("others"), types: vTypes, combos: vCombos }[view])(); }
   catch (e) { if (/unauthorized|28000/.test(e.message)) { store.del("admin_pw"); loginView("登入已失效，請重新登入"); } else v.innerHTML = `<div class="card"><h2>載入失敗</h2><p class="muted">${esc(e.message)}</p></div>`; }
 }
 
@@ -69,6 +69,71 @@ async function vSettings() {
   const setAdmin = pw => async () => { await A("admin_update_config", { patch: { new_admin_pw: pw() } }); PW = pw(); store.set("admin_pw", PW); toast("管理員密碼已更新"); vSettings(); };
   $("#saveAdminPw").onclick = e => { if (!$("#newAdminPw").value) return toast("請輸入新密碼"); busy(e.target, setAdmin(() => $("#newAdminPw").value)); };
   $("#blankAdminPw").onclick = e => { if (confirm("確定將管理員密碼設為空白？")) busy(e.target, setAdmin(() => "")); };
+}
+
+/* ---------- 首頁內容 ---------- */
+async function vHome() {
+  const rows = await select("site_content", "key=eq.home&select=key,data");
+  const custom = rows.length > 0, H = getHome(Object.fromEntries(rows.map(r => [r.key, r.data]))), c = H.copyright;
+  const F = { tools: ["01", "t-D"], self: ["02", "t-I"], others: ["03", "t-S"], adapt: ["04", "t-C"] };
+  $("#view").innerHTML = `<div class="card"><div class="row between"><h2>🏠 前台首頁內容 ${custom ? `<span class="pill" style="background:var(--brand)">已自訂</span>` : `<span class="small muted">（預設）</span>`}</h2>
+    <a class="btn ghost sm" href="index.html" target="_blank" rel="noopener">開啟前台預覽 ↗</a></div>
+    <p class="muted">編輯學員首頁看到的所有文字。儲存後重新整理前台即可生效。</p>
+    <h3>網站與主視覺</h3>
+    <label class="f">網站名稱（左上角與瀏覽器分頁標題）</label><input type="text" data-k="siteName" value="${esc(H.siteName)}">
+    <label class="f">主視覺標題</label><input type="text" data-k="heroTitle" value="${esc(H.heroTitle)}">
+    <label class="f">主視覺說明文字</label><textarea data-k="heroText">${esc(H.heroText)}</textarea>
+    <h3 style="margin-top:20px">四大功能卡片</h3>
+    <label class="f">卡片小標前綴（例如 STEP）</label><input type="text" data-k="stepLabel" value="${esc(H.stepLabel)}" style="max-width:200px">
+    <div class="grid c2">${Object.keys(F).map(k => `<div class="box ${F[k][1]}"><b>${F[k][0]}</b>
+      <label class="f">名稱</label><input type="text" data-fk="${k}" data-f="name" value="${esc(H.features[k].name)}">
+      <label class="f">說明</label><textarea data-fk="${k}" data-f="desc" style="min-height:64px">${esc(H.features[k].desc)}</textarea></div>`).join("")}</div>
+    <h3 style="margin-top:20px">其他文字</h3>
+    <label class="f">解鎖視窗提示文字</label><input type="text" data-k="lockTitleHint" value="${esc(H.lockTitleHint)}">
+    <label class="f">頁尾「管理後台」連結文字</label><input type="text" data-k="adminLinkText" value="${esc(H.adminLinkText)}" style="max-width:260px">
+    <h3 style="margin-top:20px">©️ 著作權說明區塊</h3>
+    <label class="switch"><input type="checkbox" id="cpOn" ${c.enabled ? "checked" : ""}> 在首頁頁尾顯示著作權說明</label>
+    <label class="f">標題（可留空）</label><input type="text" id="cpTitle" value="${esc(c.title)}">
+    <label class="f">內容（支援 **粗體**、- 清單、[文字](網址)）</label><textarea id="cpText" style="min-height:110px">${esc(c.text)}</textarea>
+    <div class="row" style="margin-top:16px"><button id="save">💾 儲存首頁內容</button><button class="ghost" id="reset" ${custom ? "" : "disabled"}>還原預設</button></div></div>`;
+  $("#save").onclick = e => busy(e.target, async () => {
+    const g = k => $(`[data-k="${k}"]`).value.trim(), features = {};
+    Object.keys(F).forEach(k => features[k] = { name: $(`[data-fk="${k}"][data-f="name"]`).value.trim(), desc: $(`[data-fk="${k}"][data-f="desc"]`).value.trim() });
+    const data = { siteName: g("siteName"), heroTitle: g("heroTitle"), heroText: g("heroText"), stepLabel: g("stepLabel"), lockTitleHint: g("lockTitleHint"), adminLinkText: g("adminLinkText"), features,
+      copyright: { enabled: $("#cpOn").checked, title: $("#cpTitle").value.trim(), text: $("#cpText").value.trim() } };
+    if (!data.siteName || !data.heroTitle) return toast("網站名稱與主視覺標題不可空白");
+    await A("admin_upsert_site", { p_key: "home", p_data: data }); toast("已儲存"); vHome();
+  });
+  $("#reset").onclick = e => { if (confirm("還原為預設的首頁內容？")) busy(e.target, async () => { await A("admin_delete_site", { p_key: "home" }); toast("已還原"); vHome(); }); };
+}
+
+/* ---------- 測評開頭文字（看懂自己 / 識別他人，各自獨立頁面）---------- */
+async function vIntro(kind) {
+  const rows = await select("site_content", `key=eq.intro_${kind}&select=key,data`);
+  const map = Object.fromEntries(rows.map(r => [r.key, r.data]));
+  const KINDS = { self: "🪞 看懂自己（學員按下功能後的第一個畫面）", others: "🔍 識別他人（學員按下功能後的第一個畫面）" };
+  const card = kind => {
+    const I = getIntro(map, kind), custom = !!map["intro_" + kind];
+    return `<div class="card" data-kind="${kind}"><h2>${KINDS[kind]} ${custom ? `<span class="pill" style="background:var(--brand)">已自訂</span>` : `<span class="small muted">（預設）</span>`}</h2>
+      <label class="f">頁面標題</label><input type="text" data-f="title" value="${esc(I.title)}">
+      <label class="f">說明文字</label><textarea data-f="subtitle" style="min-height:64px">${esc(I.subtitle)}</textarea>
+      <label class="f">提醒區塊標題（留空＝不顯示標題）</label><input type="text" data-f="noticeTitle" value="${esc(I.noticeTitle)}">
+      <label class="f">提醒事項（每行一條，支援 **粗體**；全部清空＝不顯示提醒區塊）</label><textarea data-f="notices">${esc(I.notices.join("\n"))}</textarea>
+      <label class="f">作答方式標題（留空＝不顯示）</label><input type="text" data-f="howTitle" value="${esc(I.howTitle)}">
+      <label class="f">作答方式說明（留空＝不顯示）</label><textarea data-f="howText" style="min-height:64px">${esc(I.howText)}</textarea>
+      ${kind === "self" ? `<div class="grid c2"><div><label class="f">姓名欄位標籤</label><input type="text" data-f="nameLabel" value="${esc(I.nameLabel)}"></div>
+        <div><label class="f">姓名欄位提示文字</label><input type="text" data-f="namePlaceholder" value="${esc(I.namePlaceholder)}"></div></div>` : ""}
+      <label class="f">開始按鈕文字</label><input type="text" data-f="startBtn" value="${esc(I.startBtn)}" style="max-width:240px">
+      <div class="row" style="margin-top:14px"><button data-save="${kind}">💾 儲存</button><button class="ghost" data-reset="${kind}" ${custom ? "" : "disabled"}>還原預設</button></div></div>`;
+  };
+  $("#view").innerHTML = `<p class="muted">編輯學員進入「${kind === "self" ? "看懂自己" : "識別他人"}」後，開始作答前看到的所有文字。儲存後重新整理前台即可生效。</p>${card(kind)}`;
+  $$("[data-save]").forEach(b => b.onclick = () => busy(b, async () => {
+    const c = $(`[data-kind="${kind}"]`), g = f => { const e = $(`[data-f="${f}"]`, c); return e ? e.value.trim() : DEFAULT_INTRO[kind][f]; };
+    const data = { title: g("title"), subtitle: g("subtitle"), noticeTitle: g("noticeTitle"), notices: lines(g("notices")), howTitle: g("howTitle"), howText: g("howText"), nameLabel: g("nameLabel"), namePlaceholder: g("namePlaceholder"), startBtn: g("startBtn") };
+    if (!data.title || !data.startBtn) return toast("頁面標題與開始按鈕文字不可空白");
+    await A("admin_upsert_site", { p_key: "intro_" + kind, p_data: data }); toast("已儲存"); vIntro(kind);
+  }));
+  $$("[data-reset]").forEach(b => b.onclick = () => { if (confirm("還原為預設文字？")) busy(b, async () => { await A("admin_delete_site", { p_key: "intro_" + kind }); toast("已還原"); vIntro(kind); }); });
 }
 
 /* ---------- 解密工具：教材 ---------- */

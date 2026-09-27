@@ -19,6 +19,18 @@ const FEATURES = [
 ];
 const isUnlocked = f => !cfg.locks[f] || store.sget("unlocked_" + f) === true;
 
+/* 首頁文字（可由後台「首頁內容」編輯）*/
+let SITE = {};           // site_content 全部資料（home / intro_self / intro_others）
+let HOME = getHome({});
+function applyHome() {
+  FEATURES.forEach(f => Object.assign(f, HOME.features[f.id]));
+  $("#brandName").textContent = HOME.siteName; document.title = HOME.siteName;
+  const c = HOME.copyright;
+  $("#siteFooter").innerHTML =
+    (c.enabled && (c.title || c.text) ? `<div class="copyright-plain">${c.title ? `<b>${esc(c.title)}</b> ` : ""}${md(c.text || "")}</div>` : "") +
+    `<p class="muted small" style="text-align:center"><a href="admin.html">${esc(HOME.adminLinkText)}</a></p>`;
+}
+
 /* ---------- 路由 ---------- */
 async function route() {
   const [, page, arg] = (location.hash || "#/").split("/");
@@ -38,7 +50,7 @@ window.addEventListener("hashchange", route);
 
 function askUnlock(f) {
   const m = document.createElement("div"); m.className = "modal";
-  m.innerHTML = `<div class="card"><h2>🔒 ${esc(f.name)}</h2><p class="muted">此功能尚未開放，請輸入講師提供的密碼解鎖。</p>
+  m.innerHTML = `<div class="card"><h2>🔒 ${esc(f.name)}</h2><p class="muted">${esc(HOME.lockTitleHint)}</p>
     <input type="password" id="pw" placeholder="密碼" autofocus><p class="small" id="err" style="color:var(--danger);min-height:1.4em"></p>
     <div class="row between"><button class="ghost" id="cancel">取消</button><button id="ok">解鎖</button></div></div>`;
   document.body.appendChild(m);
@@ -58,13 +70,13 @@ function askUnlock(f) {
 /* ---------- 首頁 ---------- */
 function home() {
   app.innerHTML = `
-  <section class="hero"><h1>看懂自己，也看懂別人</h1>
-    <p>DiSC 人際風格工作坊的學習夥伴：課前完成自我測評，課後隨時查閱教材、識別他人，並用更聰明的方式溝通。</p></section>
+  <section class="hero"><h1>${esc(HOME.heroTitle)}</h1>
+    <p>${esc(HOME.heroText)}</p></section>
   <div class="grid c2" style="margin-top:20px">${FEATURES.map(f => {
     const locked = !isUnlocked(f.id);
     return `<button class="feature t-${f.t} ${locked ? "locked" : ""}" data-f="${f.id}">
-      <span class="lock">${locked ? "🔒" : ""}</span><div class="no">STEP ${f.no}</div>
-      <h3>${f.icon} ${f.name}</h3><p class="muted" style="margin:0">${f.desc}</p></button>`;
+      <span class="lock">${locked ? "🔒" : ""}</span><div class="no">${esc(HOME.stepLabel)} ${f.no}</div>
+      <h3>${f.icon} ${esc(f.name)}</h3><p class="muted" style="margin:0">${esc(f.desc)}</p></button>`;
   }).join("")}</div>`;
   $$(".feature").forEach(b => b.onclick = () => {
     const f = FEATURES.find(x => x.id === b.dataset.f);
@@ -113,18 +125,16 @@ function selfShowSaved(r) {
   } else return selfResult(r, true);
   $("#redo").onclick = () => { if (confirm("重新測驗會覆蓋原本的紀錄，確定嗎？")) selfIntro(); };
 }
+/* 測評開頭區塊（看懂自己／識別他人共用，文字由後台「開頭文字」編輯）*/
+const introHtml = I => `<h1>${esc(I.title)}</h1><p class="muted">${esc(I.subtitle)}</p>
+  ${I.notices.length ? `<div class="notice">${I.noticeTitle ? `<b>${esc(I.noticeTitle)}</b>` : ""}<ul>${I.notices.map(n => `<li>${md(n).replace(/^<p>|<\/p>$/g, "")}</li>`).join("")}</ul></div>` : ""}
+  ${I.howTitle ? `<h3 style="margin-top:16px">${esc(I.howTitle)}</h3>` : ""}${I.howText ? md(I.howText) : ""}`;
 function selfIntro() {
-  app.innerHTML = `<div class="narrow" style="margin:auto">${back()}<div class="card">
-    <h1>🪞 看懂自己</h1><p class="muted">15 題精簡版 DiSC 行為風格自我測評，發現「原來我在別人眼中是這樣！」</p>
-    <div class="notice"><b>施測前請留意</b><ul>
-      <li>請依照你<b>平時最自然一致</b>的行為反應作答。</li>
-      <li>請<b>不要考慮</b>社會期待、工作及家庭壓力，或是理想狀態下的要求。</li>
-      <li>請盡量在 <b>5 分鐘內</b>完成。</li></ul></div>
-    <h3 style="margin-top:16px">作答方式</h3>
-    <p>每題有四個描述，請選出<span class="pill" style="background:var(--ok)">最像我</span> 與 <span class="pill" style="background:var(--danger)">最不像我</span> 各一個。</p>
-    <label class="f" for="nm">你的姓名</label>
-    <input type="text" id="nm" maxlength="30" placeholder="例如：王小明" value="${esc(store.get("disc_name", ""))}">
-    <div class="row between" style="margin-top:16px"><span></span><button id="go" disabled>開始測評</button></div></div></div>`;
+  const I = getIntro(SITE, "self");
+  app.innerHTML = `<div class="narrow" style="margin:auto">${back()}<div class="card">${introHtml(I)}
+    <label class="f" for="nm">${esc(I.nameLabel)}</label>
+    <input type="text" id="nm" maxlength="30" placeholder="${esc(I.namePlaceholder)}" value="${esc(store.get("disc_name", ""))}">
+    <div class="row between" style="margin-top:16px"><span></span><button id="go" disabled>${esc(I.startBtn)}</button></div></div></div>`;
   const nm = $("#nm"), go = $("#go");
   nm.oninput = () => go.disabled = !nm.value.trim();
   nm.onkeydown = e => { if (e.key === "Enter" && !go.disabled) go.click(); };
@@ -134,11 +144,11 @@ function selfIntro() {
     store.set("disc_name", nm.value.trim());
     try {
       selfQs = await select("questions", "kind=eq.self&order=sort.asc,updated_at.asc");
-      if (selfQs.length < 3) { toast("題目數量不足，請聯絡講師"); go.disabled = false; go.textContent = "開始測評"; return; }
+      if (selfQs.length < 3) { toast("題目數量不足，請聯絡講師"); go.disabled = false; go.textContent = I.startBtn; return; }
       const qs = (cfg.randomize ? shuffle(selfQs) : selfQs).map(q => ({ ...q, options: shuffle(q.options) }));
       selfRun = { name: nm.value.trim(), qs, cur: 0, ans: {} };
       selfQuestion();
-    } catch (e) { toast("載入失敗：" + e.message); go.disabled = false; go.textContent = "開始測評"; }
+    } catch (e) { toast("載入失敗：" + e.message); go.disabled = false; go.textContent = I.startBtn; }
   };
 }
 function selfQuestion() {
@@ -195,10 +205,9 @@ async function selfResult(r, saved) {
 /* ---------- 03 識別他人 ---------- */
 let othersRun = null;
 async function othersPage() {
-  app.innerHTML = `<div class="narrow" style="margin:auto">${back()}<div class="card">
-    <h1>🔍 識別他人</h1><p class="muted">想著一位你想了解的人（同事、主管、客戶或家人），依據平常觀察到的行為線索作答。</p>
-    <div class="notice"><ul><li>請憑「實際觀察到的行為」作答，不要憑猜測或刻板印象。</li><li>每題選最符合的一項；沒觀察過可以略過。</li><li>結果只是「可能的傾向」，請搭配更多觀察驗證。</li></ul></div>
-    <div class="row between" style="margin-top:16px"><span></span><button id="go">開始</button></div></div></div>`;
+  const I = getIntro(SITE, "others");
+  app.innerHTML = `<div class="narrow" style="margin:auto">${back()}<div class="card">${introHtml(I)}
+    <div class="row between" style="margin-top:16px"><span></span><button id="go">${esc(I.startBtn)}</button></div></div></div>`;
   $("#go").onclick = async () => {
     const qs = await select("questions", "kind=eq.others&order=sort.asc,updated_at.asc");
     if (qs.length < 1) return toast("目前沒有題目");
@@ -245,7 +254,7 @@ async function loadAdaptMap() {
   const rows = await select("adapt_content", "select=key,data");
   return Object.fromEntries(rows.map(r => [r.key, r.data]));
 }
-let adaptTab = "tool", adaptSel = null;
+let adaptTab = "types", adaptSel = null, typesSel = null, toolQuery = null;
 async function adaptPage() {
   app.innerHTML = `<p class="muted">載入中…</p>`;
   adaptMap = await loadAdaptMap();
@@ -253,24 +262,26 @@ async function adaptPage() {
     const my = store.sget("my_style"), ot = store.sget("other_style");
     adaptSel = { me: my ? styleParts(my) : { p: "D", s: null }, other: ot ? { p: ot, s: null } : { p: "I", s: null } };
   }
+  if (!typesSel) { const my = store.sget("my_style"); if (my) typesSel = styleParts(my).p; }
   renderAdapt();
 }
 function renderAdapt() {
   app.innerHTML = `${back()}<h1>🧭 彈性調適</h1><p class="muted">依據不同的風格調整溝通方式，讓對方更容易買單你的想法。</p>
-    <div class="row" style="margin:12px 0"><button class="${adaptTab === "tool" ? "" : "ghost"}" data-tab="tool">風格應對神器</button>
-    <button class="${adaptTab === "types" ? "" : "ghost"}" data-tab="types">四種風格的應對之道</button></div><div id="adaptBody"></div>`;
+    <div class="row" style="margin:12px 0"><button class="${adaptTab === "types" ? "" : "ghost"}" data-tab="types">基本應對原則</button>
+    <button class="${adaptTab === "tool" ? "" : "ghost"}" data-tab="tool">風格應對神器</button></div><div id="adaptBody"></div>`;
   $$("[data-tab]").forEach(b => b.onclick = () => { adaptTab = b.dataset.tab; renderAdapt(); });
   adaptTab === "types" ? renderTypes() : renderTool();
 }
 function renderTypes() {
-  $("#adaptBody").innerHTML = `<div class="grid c2">${TYPES.map(t => {
-    const d = getType(adaptMap, t);
-    return `<div class="card t-${t}" style="border-top:6px solid var(--c)"><h2 style="color:var(--c)">${TLABEL[t]} ${TNAME[t]}</h2><p>${esc(d.summary)}</p>
+  const typeCard = t => { const d = getType(adaptMap, t); return `<div class="card t-${t}" style="border-top:6px solid var(--c);margin-top:16px"><h2 style="color:var(--c)">${TLABEL[t]} ${TNAME[t]}</h2><p>${esc(d.summary)}</p>
       <p><b>在乎：</b>${esc(d.want)}<br><b>壓力來源：</b>${esc(d.stress)}</p>
       <h3>✅ 這樣溝通</h3><ul>${d.dos.map(x => `<li>${esc(x)}</li>`).join("")}</ul>
       <h3>⚠️ 避免</h3><ul>${d.donts.map(x => `<li>${esc(x)}</li>`).join("")}</ul>
-      <div class="box"><b>💡 ${esc(d.tip)}</b></div></div>`;
-  }).join("")}</div>`;
+      <div class="box"><b>💡 ${esc(d.tip)}</b></div></div>`; };
+  $("#adaptBody").innerHTML = `<div class="card"><p class="muted" style="margin:0 0 10px">請選擇一種 DiSC 風格，查看基本應對原則：</p>
+    <div class="row" style="gap:8px">${TYPES.map(t => `<button class="chip t-${t} ${typesSel === t ? "on" : ""}" data-tsel="${t}">${TLABEL[t]} ${TNAME[t]}</button>`).join("")}</div></div>
+    ${typesSel ? typeCard(typesSel) : `<div class="card" style="margin-top:16px;text-align:center"><p class="muted">請先在上方選擇一種風格。</p></div>`}`;
+  $$("[data-tsel]").forEach(b => b.onclick = () => { typesSel = b.dataset.tsel; renderTypes(); });
 }
 const pickStyle = sel => STYLES.find(x => x.toLowerCase() === (sel.p + (sel.s || "")).toLowerCase()) || sel.p;
 function chips(who) {
@@ -281,34 +292,56 @@ function chips(who) {
       ${ADJ[sel.p].map(t => `<button class="chip t-${t} ${sel.s === t ? "on" : ""}" data-w="${who}" data-s="${t}">${TLABEL[t]}</button>`).join("")}</div>`;
 }
 function renderTool() {
-  const my = pickStyle(adaptSel.me), ot = pickStyle(adaptSel.other), c = getCombo(adaptMap, my, ot);
+  const myLive = pickStyle(adaptSel.me), otLive = pickStyle(adaptSel.other);
   const list = a => `<ul>${(a || []).map(x => `<li>${esc(x)}</li>`).join("")}</ul>`;
   const hasMy = !!store.sget("my_style"), hasOt = !!store.sget("other_style");
-  $("#adaptBody").innerHTML = `<div class="grid c2">
-    <div class="card"><h2>我的風格：<span style="color:var(--D)">${styleLabel(my)}</span></h2>${chips("me")}
-      ${hasMy ? `<p><button class="soft sm" id="useMy">帶入我的自測結果</button></p>` : `<p class="muted small">完成「看懂自己」後，可一鍵帶入結果。</p>`}</div>
-    <div class="card"><h2>對方的風格：<span style="color:var(--C)">${styleLabel(ot)}</span></h2>${chips("other")}
-      ${hasOt ? `<p><button class="soft sm" id="useOt">帶入識別他人的結果</button></p>` : `<p class="muted small">完成「識別他人」後，可一鍵帶入結果。</p>`}</div></div>
-    <div class="card" style="margin-top:16px"><div class="row" style="gap:10px"><span class="pill t-${styleParts(my).p}">你 ${styleLabel(my)}</span><span>→</span><span class="pill t-${styleParts(ot).p}">對方 ${styleLabel(ot)}</span></div>
+  let resultHtml;
+  if (!toolQuery) {
+    resultHtml = `<div class="card" style="margin-top:16px;text-align:center"><p class="muted">選好雙方的風格後，按下「查詢應對之道」查看建議。</p></div>`;
+  } else {
+    const my = toolQuery.my, ot = toolQuery.ot, c = getCombo(adaptMap, my, ot);
+    resultHtml = `<div class="card" style="margin-top:16px">
+      <div class="row" style="gap:10px"><span class="pill t-${styleParts(my).p}">你 ${styleLabel(my)}</span><span>→</span><span class="pill t-${styleParts(ot).p}">對方 ${styleLabel(ot)}</span></div>
       <h2 style="margin-top:12px">💬 一句話重點</h2><p style="font-size:17px">${esc(c.summary)}</p>
       <div class="grid c2"><div><div class="box t-${styleParts(ot).p}"><h3>🎯 配合對方：這樣說、這樣做</h3>${list(c.adapt)}</div>
         <div class="box"><h3>⚠️ 避免踩雷</h3>${list(c.avoid)}</div></div>
       <div><div class="box t-${styleParts(my).p}"><h3>💪 善用你的優勢</h3>${list(c.leverage)}</div>
         <div class="box"><h3>🤝 找到雙方都能接受的共識</h3>${list(c.ground)}</div></div></div>
       <div class="box" style="margin-top:12px;--cs:var(--I-soft);--c:var(--I)"><h3>🚀 需要對方買單時（如對方較有話語權）</h3>${list(c.ask)}</div></div>`;
+  }
+  $("#adaptBody").innerHTML = `<div class="grid c2">
+    <div class="card"><h2>我的風格：<span style="color:var(--D)">${styleLabel(myLive)}</span></h2>${chips("me")}
+      ${hasMy ? `<p><button class="soft sm" id="useMy">帶入我的自測結果</button></p>` : `<p class="muted small">完成「看懂自己」後，可一鍵帶入結果。</p>`}</div>
+    <div class="card"><h2>對方的風格：<span style="color:var(--C)">${styleLabel(otLive)}</span></h2>${chips("other")}
+      ${hasOt ? `<p><button class="soft sm" id="useOt">帶入識別他人的結果</button></p>` : `<p class="muted small">完成「識別他人」後，可一鍵帶入結果。</p>`}</div></div>
+    <div class="row" style="justify-content:center;margin-top:16px"><button id="queryBtn">🔍 查詢應對之道</button></div>
+    ${resultHtml}`;
   $$(".chip").forEach(b => b.onclick = () => {
     const sel = adaptSel[b.dataset.w];
     if (b.dataset.p) { sel.p = b.dataset.p; if (sel.s && !ADJ[sel.p].includes(sel.s)) sel.s = null; }
     else sel.s = b.dataset.s || null;
-    renderTool();
+    toolQuery = null; renderTool();
   });
   const um = $("#useMy"), uo = $("#useOt");
-  if (um) um.onclick = () => { adaptSel.me = styleParts(store.sget("my_style")); renderTool(); };
-  if (uo) uo.onclick = () => { adaptSel.other = { p: store.sget("other_style"), s: null }; renderTool(); };
+  if (um) um.onclick = () => { adaptSel.me = styleParts(store.sget("my_style")); toolQuery = null; renderTool(); };
+  if (uo) uo.onclick = () => { adaptSel.other = { p: store.sget("other_style"), s: null }; toolQuery = null; renderTool(); };
+  $("#queryBtn").onclick = () => {
+    toolQuery = { my: pickStyle(adaptSel.me), ot: pickStyle(adaptSel.other) };
+    renderTool();
+    $("#adaptBody").lastElementChild.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  };
 }
 
 /* ---------- 啟動 ---------- */
 (async () => {
-  try { cfg = await rpc("get_config"); } catch (e) { console.error(e); }
-  route();
+  const t0 = performance.now();
+  applyHome();
+  try {
+    const [c, rows] = await Promise.all([rpc("get_config"), select("site_content", "select=key,data")]);
+    cfg = c; SITE = Object.fromEntries(rows.map(r => [r.key, r.data])); HOME = getHome(SITE); applyHome();
+  } catch (e) { console.error(e); }
+  await route();
+  // 載入動畫至少播完一輪（拆開→重組），再淡出
+  const wait = Math.max(0, 1900 - (performance.now() - t0));
+  setTimeout(() => { const s = $("#splash"); s.classList.add("done"); setTimeout(() => s.remove(), 600); }, wait);
 })();

@@ -7,17 +7,22 @@
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+<div id="splash" role="status" aria-label="載入中">
+  <div class="splash-in">
+    <div class="sq-grid"><i class="sq sq-d"></i><i class="sq sq-i"></i><i class="sq sq-c"></i><i class="sq sq-s"></i></div>
+    <p class="muted">載入中…</p>
+  </div>
+</div>
+
 <header class="topbar"><div class="topbar-in">
-  <a class="brand" href="#/"><span class="logo"><i></i><i></i><i></i><i></i></span><span>DiSC 人際風格工作坊</span></a>
+  <a class="brand" href="#/"><span class="logo"><i></i><i></i><i></i><i></i></span><span id="brandName">DiSC 人際風格工作坊</span></a>
   <span class="spacer"></span>
   <button class="ghost icon" id="themeBtn" title="切換淺色／深色">🌙</button>
 </div></header>
 
-<main class="wrap" id="app"><p class="muted">載入中…</p></main>
+<main class="wrap" id="app"></main>
 
-<footer class="wrap" style="padding-top:0">
-  <p class="muted small" style="text-align:center"><a href="admin.html">管理後台</a></p>
-</footer>
+<footer class="wrap" id="siteFooter" style="padding-top:0"></footer>
 
 <script src="js/common.js"></script>
 <script src="js/app.js"></script>

@@ -215,4 +215,54 @@ function barsHtml(scores, suffix = "") {
     <div class="bar-row t-${t}"><b>${TLABEL[t]} ${TNAME[t]}</b><div class="track"><div class="fill" style="width:${scores[t]}%"></div></div><span>${scores[t]}${suffix}</span></div>`).join("");
 }
 
+/* ============ 首頁文字內容（後台「首頁內容」可覆寫；key: home）============ */
+const DEFAULT_HOME = {
+  siteName: "DiSC 人際風格工作坊",
+  heroTitle: "看懂自己，也看懂別人",
+  heroText: "DiSC 人際風格工作坊的學習夥伴：課前完成自我測評，課後隨時查閱教材、識別他人，並用更聰明的方式溝通。",
+  stepLabel: "STEP",
+  features: {
+    tools: { name: "解密工具", desc: "掌握 DiSC 的原理與應用：教材、圖文、影音一次看。" },
+    self: { name: "看懂自己", desc: "15 題自我測評，發現「原來我在別人眼中是這樣！」" },
+    others: { name: "識別他人", desc: "從生活中的行為線索，觀察他人的風格與溝通偏好。" },
+    adapt: { name: "彈性調適", desc: "依對方風格調整溝通，讓你的想法更容易被接受。" }
+  },
+  lockTitleHint: "此功能尚未開放，請輸入講師提供的密碼解鎖。",
+  adminLinkText: "管理後台",
+  copyright: { enabled: true, title: "著作權說明", text: "© 2026 版權所有。本網站內容僅供內部學習使用，未經授權請勿轉載、重製或散布。" }
+};
+function getHome(map) {
+  const d = DEFAULT_HOME, h = (map && map["home"]) || {};
+  const features = {};
+  Object.keys(d.features).forEach(k => features[k] = { ...d.features[k], ...((h.features || {})[k] || {}) });
+  return { ...d, ...h, features, copyright: { ...d.copyright, ...(h.copyright || {}) } };
+}
+
+/* ============ 測評開頭文字（後台「開頭文字」可覆寫；key: intro_self / intro_others）============ */
+const DEFAULT_INTRO = {
+  self: {
+    title: "🪞 看懂自己",
+    subtitle: "15 題精簡版 DiSC 行為風格自我測評，發現「原來我在別人眼中是這樣！」",
+    noticeTitle: "施測前請留意",
+    notices: ["請依照你**平時最自然一致**的行為反應作答。", "請**不要考慮**社會期待、工作及家庭壓力，或是理想狀態下的要求。", "請盡量在 **5 分鐘內**完成。"],
+    howTitle: "作答方式",
+    howText: "每題有四個描述，請選出「最像我」與「最不像我」各一個。",
+    nameLabel: "你的姓名",
+    namePlaceholder: "例如：王小明",
+    startBtn: "開始測評"
+  },
+  others: {
+    title: "🔍 識別他人",
+    subtitle: "想著一位你想了解的人（同事、主管、客戶或家人），依據平常觀察到的行為線索作答。",
+    noticeTitle: "",
+    notices: ["請憑「實際觀察到的行為」作答，不要憑猜測或刻板印象。", "每題選最符合的一項；沒觀察過可以略過。", "結果只是「可能的傾向」，請搭配更多觀察驗證。"],
+    howTitle: "",
+    howText: "",
+    nameLabel: "",
+    namePlaceholder: "",
+    startBtn: "開始"
+  }
+};
+const getIntro = (map, kind) => ({ ...DEFAULT_INTRO[kind], ...((map && map["intro_" + kind]) || {}) });
+
 initTheme();
