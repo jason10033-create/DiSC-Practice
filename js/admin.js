@@ -10,7 +10,6 @@ const lines = s => s.split("\n").map(x => x.trim()).filter(Boolean);
 function loginView(err = "") {
   $("#logout").classList.add("hidden");
   root.innerHTML = `<div class="card narrow" style="margin:40px auto"><h1>🔐 管理員登入</h1>
-    <p class="muted">預設密碼為空白，可直接登入；建議登入後至「基本設定」設定密碼。</p>
     <label class="f" for="pw">管理員密碼</label><input type="password" id="pw" autofocus>
     <p class="small" style="color:var(--danger);min-height:1.4em">${esc(err)}</p>
     <button id="login">登入</button></div>`;
@@ -24,10 +23,10 @@ $("#logout").onclick = () => { store.del("admin_pw"); PW = null; loginView(); };
 
 /* ---------- 版型 ---------- */
 const NAV = [
-  ["settings", "⚙️ 基本設定"], ["home", "🏠 首頁內容"], ["_", "解密工具"], ["tools", "📖 教材管理"],
-  ["_", "看懂自己"], ["introSelf", "✍️ 測評開頭文字"], ["self", "🪞 題目與設定"], ["results", "👥 填答者結果"], ["report", "📊 彙總報表"], ["logicSelf", "🧮 計分邏輯"],
-  ["_", "識別他人"], ["introOthers", "✍️ 測評開頭文字"], ["others", "🔍 題目管理"], ["logicOthers", "🧮 計分邏輯"],
-  ["_", "彈性調適"], ["types", "🧭 四型基本應對"], ["combos", "🎛️ 應對神器建議"]
+  ["settings", "基本設定"], ["home", "首頁內容"], ["_", "解密工具"], ["tools", "教材管理"],
+  ["_", "看懂自己"], ["introSelf", "測評開頭文字"], ["self", "題目與設定"], ["results", "填答者結果"], ["report", "彙總報表"], ["logicSelf", "計分邏輯"],
+  ["_", "識別他人"], ["introOthers", "測評開頭文字"], ["others", "題目管理"], ["logicOthers", "計分邏輯"],
+  ["_", "彈性調適"], ["types", "四型基本應對"], ["combos", "應對神器建議"]
 ];
 function shell() {
   $("#logout").classList.remove("hidden");
@@ -283,7 +282,7 @@ async function vResults() {
 async function vReport() {
   const rows = (await A("admin_list_results"));
   const n = rows.length;
-  if (!n) { $("#view").innerHTML = `<div class="card"><h2>📊 彙總報表</h2><p class="muted">尚無填答資料。</p></div>`; return; }
+  if (!n) { $("#view").innerHTML = `<div class="card"><h2>彙總報表</h2><p class="muted">尚無填答資料。</p></div>`; return; }
   const avg = { D: 0, I: 0, S: 0, C: 0 }; rows.forEach(r => { avg.D += r.score_d; avg.I += r.score_i; avg.S += r.score_s; avg.C += r.score_c; }); TYPES.forEach(t => avg[t] = Math.round(avg[t] / n));
   const prim = { D: 0, I: 0, S: 0, C: 0 }; rows.forEach(r => prim[r.primary_types[0]]++);
   const sty = Object.fromEntries(STYLES.map(s => [s, 0])); rows.forEach(r => { if (r.style && sty[r.style] !== undefined) sty[r.style]++; });
@@ -291,6 +290,8 @@ async function vReport() {
   $("#view").innerHTML = `<div class="grid c2">
     <div class="card"><h2>主型人數分布（共 ${n} 人）</h2>${TYPES.map(t => `<div class="bar-row t-${t}"><b>${TLABEL[t]} ${TNAME[t]}</b><div class="track"><div class="fill" style="width:${prim[t] / n * 100}%"></div></div><span>${prim[t]}人</span></div>`).join("")}</div>
     <div class="card"><h2>全體平均分數</h2>${barsHtml(avg)}</div></div>
+  <div class="card" style="margin-top:16px"><h2>DiSC 分布圖</h2><p class="muted">每個點代表一位填答者，位置依其 D／i／S／C 分數計算；分數雷同的填答者會合併成同一個圓圈並標示人數，滑鼠移到點上可看到所有人的姓名。</p>
+    <div class="circleWrap" style="max-width:360px">${discScatterSvg(rows)}</div></div>
   <div class="card" style="margin-top:16px"><h2>12 種風格分布</h2>${STYLES.map(s => `<div class="bar-row t-${styleParts(s).p}" style="grid-template-columns:70px 1fr 44px"><b>${styleLabel(s)}</b><div class="track"><div class="fill" style="width:${sty[s] / maxS * 100}%"></div></div><span>${sty[s]}人</span></div>`).join("")}
     <p class="muted small">僅統計使用新版測評（含風格代碼）的紀錄。</p></div>`;
 }

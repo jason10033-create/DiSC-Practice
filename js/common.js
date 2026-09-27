@@ -192,23 +192,49 @@ const getType = (map, t) => map["type:" + t] || defaultType(t);
 const getCombo = (map, my, other) => map[`combo:${my}>${other}`] || defaultCombo(my, other);
 
 /* ============ DiSC 圓形圖（點位置表示強弱與傾向）============ */
-function circleSvg(scores) {
-  const R = 100, v = { D: [-1, -1], I: [1, -1], S: [1, 1], C: [-1, 1] };
+function discPoint(scores, R = 100, cx0 = 110, cy0 = 110) {
+  const v = { D: [-1, -1], I: [1, -1], S: [1, 1], C: [-1, 1] };
   let x = 0, y = 0;
   TYPES.forEach(t => { const w = (scores[t] - 50) / 50; x += v[t][0] * w; y += v[t][1] * w; });
   x /= 2; y /= 2; // 約 -1..1
   const len = Math.hypot(x, y), max = 0.92; if (len > max) { x = x / len * max; y = y / len * max; }
-  const cx = 110 + x * R, cy = 110 + y * R;
-  return `<svg viewBox="0 0 220 220" role="img" aria-label="DiSC 圓形圖">
-    <defs><clipPath id="cc"><circle cx="110" cy="110" r="104"/></clipPath></defs>
-    <g clip-path="url(#cc)">
-      <rect x="6" y="6" width="104" height="104" fill="var(--D)" opacity=".85"/><rect x="110" y="6" width="104" height="104" fill="var(--I)" opacity=".85"/>
-      <rect x="110" y="110" width="104" height="104" fill="var(--S)" opacity=".85"/><rect x="6" y="110" width="104" height="104" fill="var(--C)" opacity=".85"/></g>
-    <circle cx="110" cy="110" r="104" fill="none" stroke="var(--surface)" stroke-width="4"/>
-    <line x1="110" y1="6" x2="110" y2="214" stroke="var(--surface)" stroke-width="3"/><line x1="6" y1="110" x2="214" y2="110" stroke="var(--surface)" stroke-width="3"/>
-    <text x="58" y="66" font-size="30" font-weight="900" fill="#fff" text-anchor="middle">D</text><text x="162" y="66" font-size="30" font-weight="900" fill="#fff" text-anchor="middle">i</text>
-    <text x="162" y="170" font-size="30" font-weight="900" fill="#fff" text-anchor="middle">S</text><text x="58" y="170" font-size="30" font-weight="900" fill="#fff" text-anchor="middle">C</text>
-    <circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="11" fill="#fff" stroke="#1d2233" stroke-width="4"/></svg>`;
+  return { x: cx0 + x * R, y: cy0 + y * R };
+}
+const discQuadrantSvg = size => `<defs><clipPath id="cc${size}"><circle cx="110" cy="110" r="104"/></clipPath></defs>
+  <g clip-path="url(#cc${size})">
+    <rect x="6" y="6" width="104" height="104" fill="var(--D)" opacity=".85"/><rect x="110" y="6" width="104" height="104" fill="var(--I)" opacity=".85"/>
+    <rect x="110" y="110" width="104" height="104" fill="var(--S)" opacity=".85"/><rect x="6" y="110" width="104" height="104" fill="var(--C)" opacity=".85"/></g>
+  <circle cx="110" cy="110" r="104" fill="none" stroke="var(--surface)" stroke-width="4"/>
+  <line x1="110" y1="6" x2="110" y2="214" stroke="var(--surface)" stroke-width="3"/><line x1="6" y1="110" x2="214" y2="110" stroke="var(--surface)" stroke-width="3"/>
+  <text x="58" y="66" font-size="30" font-weight="900" fill="#fff" text-anchor="middle">D</text><text x="162" y="66" font-size="30" font-weight="900" fill="#fff" text-anchor="middle">i</text>
+  <text x="162" y="170" font-size="30" font-weight="900" fill="#fff" text-anchor="middle">S</text><text x="58" y="170" font-size="30" font-weight="900" fill="#fff" text-anchor="middle">C</text>`;
+function circleSvg(scores) {
+  const p = discPoint(scores);
+  return `<svg viewBox="0 0 220 220" role="img" aria-label="DiSC 圓形圖">${discQuadrantSvg("main")}
+    <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="11" fill="#fff" stroke="#1d2233" stroke-width="4"/></svg>`;
+}
+/* 多人散點圖：每個填答者一個點，滑鼠移到點上顯示姓名（title 提示）；
+   位置相近（分數雷同）的填答者會合併成同一個圓圈，圈上標示人數，提示文字列出所有人的姓名 */
+function discScatterSvg(rows) {
+  const CLUSTER_R = 5; // 視窗座標系 220×220 中，多近視為「雷同」
+  const groups = [];
+  rows.forEach(r => {
+    const p = discPoint({ D: r.score_d, I: r.score_i, S: r.score_s, C: r.score_c });
+    const t = (r.primary_types && r.primary_types[0]) || "D";
+    let g = groups.find(g => Math.hypot(g.x - p.x, g.y - p.y) <= CLUSTER_R);
+    if (!g) { g = { x: p.x, y: p.y, items: [] }; groups.push(g); }
+    g.items.push({ name: r.user_name, style: r.style, t }); // 群中心固定用第一個加入者的位置
+  });
+  const dots = groups.map(g => {
+    const n = g.items.length;
+    const cnt = {}; g.items.forEach(i => cnt[i.t] = (cnt[i.t] || 0) + 1);
+    const mainType = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a])[0];
+    const r = Math.min(7 + (n - 1) * 2.5, 16);
+    const label = g.items.map(i => `${i.name}${i.style ? "（" + styleLabel(i.style) + "）" : ""}`).join("、");
+    return `<g><circle cx="${g.x.toFixed(1)}" cy="${g.y.toFixed(1)}" r="${r}" fill="var(--${mainType})" stroke="#fff" stroke-width="2" opacity=".92"><title>${esc(label)}</title></circle>
+      ${n > 1 ? `<text x="${g.x.toFixed(1)}" y="${(g.y + 4).toFixed(1)}" font-size="11" font-weight="800" fill="#fff" text-anchor="middle" pointer-events="none">${n}</text>` : ""}</g>`;
+  }).join("");
+  return `<svg viewBox="0 0 220 220" role="img" aria-label="所有填答者的 DiSC 分布散點圖">${discQuadrantSvg("rep")}${dots}</svg>`;
 }
 function barsHtml(scores, suffix = "") {
   return [...TYPES].sort((a, b) => scores[b] - scores[a]).map(t => `

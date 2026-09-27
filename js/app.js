@@ -156,7 +156,7 @@ function selfQuestion() {
   app.innerHTML = `<div class="narrow" style="margin:auto"><div class="card">
     <div class="row between small muted"><span>第 ${r.cur + 1} / ${r.qs.length} 題</span><span>⏱ 建議 5 分鐘內完成</span></div>
     <div class="progress" style="margin:8px 0 16px"><i style="width:${r.cur / r.qs.length * 100}%"></i></div>
-    <h2>${esc(q.prompt)}</h2><p class="muted small">請選出一個「最像我」與一個「最不像我」。</p>
+    <h2>${esc(q.prompt)}</h2>
     ${q.options.map((o, i) => `<div class="opt"><span class="lbl">${esc(o.text)}</span>
       <button class="mark most ${a.most === i ? "on" : ""}" data-k="most" data-i="${i}" ${a.least === i ? "disabled" : ""}>最像我</button>
       <button class="mark least ${a.least === i ? "on" : ""}" data-k="least" data-i="${i}" ${a.most === i ? "disabled" : ""}>最不像我</button></div>`).join("")}
