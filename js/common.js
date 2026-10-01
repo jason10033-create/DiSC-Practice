@@ -176,8 +176,28 @@ function defaultType(t) {
     tip: `想讓${TLABEL[t]}型的人買單：${P.ask}`
   };
 }
-/* 12×12 組合建議（後台 key: combo:我的風格>對方風格） */
-function defaultCombo(my, other) {
+/* 關係方向（風格應對神器用）：平行沿用原本無後綴的 key，向下相容既有 144 組自訂內容 */
+const DIRECTIONS = [
+  { id: "peer", label: "平行單位", hint: "同儕或跨部門" },
+  { id: "down", label: "上對下", hint: "我是主管／資深，對方是部屬" },
+  { id: "up", label: "下對上", hint: "我是部屬，對方是主管／資深" }
+];
+const DIR_NOTE = {
+  down: {
+    prefix: "身為主管／資深的一方，",
+    adapt: "身為主管，請先建立心理安全感，部屬才敢說真話、提出疑慮，而不是只敢順從。",
+    leverage: t => `你在這段關係中握有職務上的高度與資源，請善用「${PROFILE[t].strength}」去建立信任、清楚授權，而不是只靠位階壓人。`,
+    ask: "身為主管，你的話本來就有份量，更要說明「為什麼」而不只是下指令，部屬的投入度才會是真心的，不只是表面配合。"
+  },
+  up: {
+    prefix: "身為部屬／資淺的一方，",
+    adapt: "身為部屬，請留意回報的時機與分寸：主動讓對方知道進度，不要讓對方需要主動來問你。",
+    leverage: t => `面對位階較高的對方，請善用「${PROFILE[t].strength}」，並站在對方的優先順序思考，讓你的建議更容易被接受。`,
+    ask: "面對上位者，應對之道的重點是「精準表達需求、同時尊重位階」：先說清楚這件事對團隊／對主管的價值，再提出你的訴求，會比直接要求更容易被買單。"
+  }
+};
+/* 12×12×3 組合建議（後台 key: combo:我的風格>對方風格，上對下/下對上加 :down / :up 後綴） */
+function defaultCombo(my, other, direction = "peer") {
   const a = styleParts(my), b = styleParts(other), A = PROFILE[a.p], B = PROFILE[b.p];
   const [dyn, lev, ground] = PAIR[a.p + b.p];
   const adapt = B.comm.slice(); if (b.s) adapt.push(SEC_OTHER[b.s]);
@@ -185,11 +205,15 @@ function defaultCombo(my, other) {
   const avoid = B.avoid.slice(); avoid.push(`留意你自己的盲點：${A.blind}。`);
   const ask = [B.ask, "同時說明這件事對對方（與雙方）的好處，讓對方是「認同」而不是「被迫配合」。"];
   if (b.s) ask.push(SEC_OTHER[b.s]);
-  return { summary: dyn, adapt, leverage, ground: [ground], ask, avoid };
+  let summary = dyn;
+  const note = DIR_NOTE[direction];
+  if (note) { summary = note.prefix + dyn; adapt.push(note.adapt); leverage.push(note.leverage(a.p)); ask.push(note.ask); }
+  return { summary, adapt, leverage, ground: [ground], ask, avoid };
 }
 const isEdited = (map, key) => !!map[key];
 const getType = (map, t) => map["type:" + t] || defaultType(t);
-const getCombo = (map, my, other) => map[`combo:${my}>${other}`] || defaultCombo(my, other);
+const comboKey = (my, other, direction = "peer") => `combo:${my}>${other}${direction === "peer" ? "" : ":" + direction}`;
+const getCombo = (map, my, other, direction = "peer") => map[comboKey(my, other, direction)] || defaultCombo(my, other, direction);
 
 /* ============ DiSC 圓形圖（點位置表示強弱與傾向）============ */
 function discPoint(scores, R = 100, cx0 = 110, cy0 = 110) {

@@ -254,14 +254,11 @@ async function loadAdaptMap() {
   const rows = await select("adapt_content", "select=key,data");
   return Object.fromEntries(rows.map(r => [r.key, r.data]));
 }
-let adaptTab = "types", adaptSel = null, typesSel = null, toolQuery = null;
+let adaptTab = "types", adaptSel = null, typesSel = null, toolQuery = null, toolDirection = "peer";
 async function adaptPage() {
   app.innerHTML = `<p class="muted">載入中…</p>`;
   adaptMap = await loadAdaptMap();
-  if (!adaptSel) {
-    const my = store.sget("my_style"), ot = store.sget("other_style");
-    adaptSel = { me: my ? styleParts(my) : { p: "D", s: null }, other: ot ? { p: ot, s: null } : { p: "I", s: null } };
-  }
+  if (!adaptSel) adaptSel = { me: { p: "D", s: null }, other: { p: "I", s: null } };
   if (!typesSel) { const my = store.sget("my_style"); if (my) typesSel = styleParts(my).p; }
   renderAdapt();
 }
@@ -294,14 +291,14 @@ function chips(who) {
 function renderTool() {
   const myLive = pickStyle(adaptSel.me), otLive = pickStyle(adaptSel.other);
   const list = a => `<ul>${(a || []).map(x => `<li>${esc(x)}</li>`).join("")}</ul>`;
-  const hasMy = !!store.sget("my_style"), hasOt = !!store.sget("other_style");
   let resultHtml;
   if (!toolQuery) {
-    resultHtml = `<div class="card" style="margin-top:16px;text-align:center"><p class="muted">選好雙方的風格後，按下「查詢應對之道」查看建議。</p></div>`;
+    resultHtml = `<div class="card" style="margin-top:16px;text-align:center"><p class="muted">選好雙方的風格與關係方向後，按下「查詢應對之道」查看建議。</p></div>`;
   } else {
-    const my = toolQuery.my, ot = toolQuery.ot, c = getCombo(adaptMap, my, ot);
+    const my = toolQuery.my, ot = toolQuery.ot, dir = toolQuery.direction, c = getCombo(adaptMap, my, ot, dir);
+    const dirInfo = DIRECTIONS.find(d => d.id === dir);
     resultHtml = `<div class="card" style="margin-top:16px">
-      <div class="row" style="gap:10px"><span class="pill t-${styleParts(my).p}">你 ${styleLabel(my)}</span><span>→</span><span class="pill t-${styleParts(ot).p}">對方 ${styleLabel(ot)}</span></div>
+      <div class="row" style="gap:10px"><span class="pill t-${styleParts(my).p}">你 ${styleLabel(my)}</span><span>→</span><span class="pill t-${styleParts(ot).p}">對方 ${styleLabel(ot)}</span>${dir !== "peer" ? `<span class="pill" style="background:var(--brand)">${esc(dirInfo.label)}</span>` : ""}</div>
       <h2 style="margin-top:12px">💬 一句話重點</h2><p style="font-size:17px">${esc(c.summary)}</p>
       <div class="grid c2"><div><div class="box t-${styleParts(ot).p}"><h3>🎯 配合對方：這樣說、這樣做</h3>${list(c.adapt)}</div>
         <div class="box"><h3>⚠️ 避免踩雷</h3>${list(c.avoid)}</div></div>
@@ -309,24 +306,23 @@ function renderTool() {
         <div class="box"><h3>🤝 找到雙方都能接受的共識</h3>${list(c.ground)}</div></div></div>
       <div class="box" style="margin-top:12px;--cs:var(--I-soft);--c:var(--I)"><h3>🚀 需要對方買單時（如對方較有話語權）</h3>${list(c.ask)}</div></div>`;
   }
-  $("#adaptBody").innerHTML = `<div class="grid c2">
-    <div class="card"><h2>我的風格：<span style="color:var(--D)">${styleLabel(myLive)}</span></h2>${chips("me")}
-      ${hasMy ? `<p><button class="soft sm" id="useMy">帶入我的自測結果</button></p>` : `<p class="muted small">完成「看懂自己」後，可一鍵帶入結果。</p>`}</div>
-    <div class="card"><h2>對方的風格：<span style="color:var(--C)">${styleLabel(otLive)}</span></h2>${chips("other")}
-      ${hasOt ? `<p><button class="soft sm" id="useOt">帶入識別他人的結果</button></p>` : `<p class="muted small">完成「識別他人」後，可一鍵帶入結果。</p>`}</div></div>
+  $("#adaptBody").innerHTML = `<div class="card"><p class="muted" style="margin:0 0 10px">你和對方的關係：</p>
+    <div class="row" style="gap:8px">${DIRECTIONS.map(d => `<button class="chip ${toolDirection === d.id ? "on" : ""}" data-dir="${d.id}">${d.label}</button>`).join("")}</div>
+    <p class="muted small" style="margin:8px 0 0">${esc(DIRECTIONS.find(d => d.id === toolDirection).hint)}</p></div>
+    <div class="grid c2" style="margin-top:16px">
+    <div class="card"><h2>我的風格：<span style="color:var(--D)">${styleLabel(myLive)}</span></h2>${chips("me")}</div>
+    <div class="card"><h2>對方的風格：<span style="color:var(--C)">${styleLabel(otLive)}</span></h2>${chips("other")}</div></div>
     <div class="row" style="justify-content:center;margin-top:16px"><button id="queryBtn">🔍 查詢應對之道</button></div>
     ${resultHtml}`;
-  $$(".chip").forEach(b => b.onclick = () => {
+  $$("[data-dir]").forEach(b => b.onclick = () => { toolDirection = b.dataset.dir; toolQuery = null; renderTool(); });
+  $$(".chip[data-w]").forEach(b => b.onclick = () => {
     const sel = adaptSel[b.dataset.w];
     if (b.dataset.p) { sel.p = b.dataset.p; if (sel.s && !ADJ[sel.p].includes(sel.s)) sel.s = null; }
     else sel.s = b.dataset.s || null;
     toolQuery = null; renderTool();
   });
-  const um = $("#useMy"), uo = $("#useOt");
-  if (um) um.onclick = () => { adaptSel.me = styleParts(store.sget("my_style")); toolQuery = null; renderTool(); };
-  if (uo) uo.onclick = () => { adaptSel.other = { p: store.sget("other_style"), s: null }; toolQuery = null; renderTool(); };
   $("#queryBtn").onclick = () => {
-    toolQuery = { my: pickStyle(adaptSel.me), ot: pickStyle(adaptSel.other) };
+    toolQuery = { my: pickStyle(adaptSel.me), ot: pickStyle(adaptSel.other), direction: toolDirection };
     renderTool();
     $("#adaptBody").lastElementChild.scrollIntoView({ behavior: "smooth", block: "nearest" });
   };

@@ -341,16 +341,22 @@ async function vTypes() {
   }));
   $$("[data-reset]").forEach(b => b.onclick = () => { if (confirm("還原為預設內容？")) busy(b, async () => { await A("admin_delete_adapt", { p_key: "type:" + b.dataset.reset }); toast("已還原"); vTypes(); }); });
 }
-let comboSel = { my: "D", other: "I" };
+let comboSel = { my: "D", other: "I" }, comboDir = "peer";
 async function vCombos() {
   await loadAdapt();
-  const key = `combo:${comboSel.my}>${comboSel.other}`, c = getCombo(adaptMap, comboSel.my, comboSel.other), ed = isEdited(adaptMap, key);
-  const edited = Object.keys(adaptMap).filter(k => k.startsWith("combo:")).length;
-  $("#view").innerHTML = `<div class="card"><h2>🎛️ 風格應對神器：144 種組合</h2>
-    <p class="muted">列＝「我的風格」，欄＝「對方風格」。點選格子即可編輯；<span class="pill" style="background:var(--brand)">實心</span>＝已自訂（目前 ${edited} / 144），其餘為系統預設建議。</p>
+  const key = comboKey(comboSel.my, comboSel.other, comboDir), c = getCombo(adaptMap, comboSel.my, comboSel.other, comboDir), ed = isEdited(adaptMap, key);
+  // 判斷「已自訂」只看目前這個方向的 key，跟其他方向互不影響（平行＝沒有 :down / :up 後綴）
+  const edited = Object.keys(adaptMap).filter(k => k.startsWith("combo:") && (comboDir === "peer" ? !/:(down|up)$/.test(k) : k.endsWith(":" + comboDir))).length;
+  $("#view").innerHTML = `<div class="card"><h2>風格應對神器：144 種組合</h2>
+    <p class="muted">除了我的風格／對方風格，還可以依關係方向分開管理建議內容。</p>
+    <div class="row" style="gap:8px">${DIRECTIONS.map(d => `<button class="${comboDir === d.id ? "" : "ghost"}" data-dirtab="${d.id}">${d.label}</button>`).join("")}</div>
+    <p class="muted small" style="margin-top:6px">${esc(DIRECTIONS.find(d => d.id === comboDir).hint)}</p></div>
+  <div class="card" style="margin-top:16px"><p class="muted">列＝「我的風格」，欄＝「對方風格」。點選格子即可編輯；<span class="pill" style="background:var(--brand)">實心</span>＝這個方向下已自訂（目前 ${edited} / 144），其餘為系統預設建議。</p>
     <div class="scroll-x"><div class="matrix" style="min-width:640px"><div class="h"></div>${STYLES.map(s => `<div class="h">${esc(styleLabel(s))}</div>`).join("")}
-      ${STYLES.map(m => `<div class="h" style="text-align:right;padding-right:6px">${esc(styleLabel(m))}</div>${STYLES.map(o => `<button data-m="${m}" data-o="${o}" class="${isEdited(adaptMap, `combo:${m}>${o}`) ? "edited" : ""} ${m === comboSel.my && o === comboSel.other ? "sel" : ""}">${isEdited(adaptMap, `combo:${m}>${o}`) ? "●" : "·"}</button>`).join("")}`).join("")}</div></div></div>
-  <div class="card" id="cbEd" style="margin-top:16px"><h2>我：<span class="pill t-${styleParts(comboSel.my).p}">${esc(styleLabel(comboSel.my))}</span> → 對方：<span class="pill t-${styleParts(comboSel.other).p}">${esc(styleLabel(comboSel.other))}</span> ${ed ? `<span class="pill" style="background:var(--brand)">已自訂</span>` : `<span class="small muted">（預設）</span>`}</h2>
+      ${STYLES.map(m => `<div class="h" style="text-align:right;padding-right:6px">${esc(styleLabel(m))}</div>${STYLES.map(o => `<button data-m="${m}" data-o="${o}" class="${isEdited(adaptMap, comboKey(m, o, comboDir)) ? "edited" : ""} ${m === comboSel.my && o === comboSel.other ? "sel" : ""}">${isEdited(adaptMap, comboKey(m, o, comboDir)) ? "●" : "·"}</button>`).join("")}`).join("")}</div></div></div>
+  <div class="card" id="cbEd" style="margin-top:16px"><h2>我：<span class="pill t-${styleParts(comboSel.my).p}">${esc(styleLabel(comboSel.my))}</span> → 對方：<span class="pill t-${styleParts(comboSel.other).p}">${esc(styleLabel(comboSel.other))}</span>
+      <span class="pill" style="background:var(--muted)">${esc(DIRECTIONS.find(d => d.id === comboDir).label)}</span>
+      ${ed ? `<span class="pill" style="background:var(--brand)">已自訂</span>` : `<span class="small muted">（預設）</span>`}</h2>
     <label class="f">一句話重點</label><textarea data-f="summary" style="min-height:60px">${esc(c.summary)}</textarea>
     <div class="grid c2"><div><label class="f">配合對方：這樣說、這樣做（每行一條）</label><textarea data-f="adapt">${esc(c.adapt.join("\n"))}</textarea></div>
       <div><label class="f">避免踩雷</label><textarea data-f="avoid">${esc(c.avoid.join("\n"))}</textarea></div>
@@ -358,6 +364,7 @@ async function vCombos() {
       <div><label class="f">雙方都能接受的共識</label><textarea data-f="ground">${esc(c.ground.join("\n"))}</textarea></div></div>
     <label class="f">需要對方買單時</label><textarea data-f="ask">${esc(c.ask.join("\n"))}</textarea>
     <div class="row" style="margin-top:12px"><button id="cbSave">💾 儲存此組合</button><button class="ghost" id="cbReset" ${ed ? "" : "disabled"}>還原預設</button></div></div>`;
+  $$("[data-dirtab]").forEach(b => b.onclick = () => { comboDir = b.dataset.dirtab; vCombos(); });
   $$(".matrix button").forEach(b => b.onclick = () => { comboSel = { my: b.dataset.m, other: b.dataset.o }; vCombos(); setTimeout(() => $("#cbEd").scrollIntoView({ behavior: "smooth" }), 50); });
   $("#cbSave").onclick = e => busy(e.target, async () => {
     const g = f => $(`#cbEd [data-f="${f}"]`).value;
