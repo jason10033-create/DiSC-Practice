@@ -182,27 +182,29 @@ async function selfSubmit() {
   selfShowSaved(res);
 }
 function feedbackBlock(r) {
-  const val = r.accuracy_feedback || 3;
+  const val = r.accuracy_feedback || 3, locked = !!r.accuracy_feedback;
   return `<div class="card" style="margin-top:16px">
-    <h3 style="margin:0 0 4px">這個結果準不準？</h3>
-    <p class="muted small" style="margin:0 0 14px">評估結果的準確度回饋，拖曳滑桿選擇你的感受，會一併記錄給講師參考。</p>
+    <h3 style="margin:0 0 14px">評估結果的準確度回饋</h3>
     <div class="rate-current" id="rateVal">${val}・${RATE_LABELS[val]}</div>
-    <input type="range" id="rateInput" min="1" max="5" step="1" value="${val}">
+    <input type="range" id="rateInput" min="1" max="5" step="1" value="${val}" ${locked ? "disabled" : ""}>
     <div class="rate-labels"><span>1 非常不準確</span><span>5 非常準確</span></div>
-    <div class="row between" style="margin-top:14px"><span class="muted small" id="rateMsg">${r.accuracy_feedback ? "已送出過回饋，調整後可再次送出" : ""}</span><button id="rateSubmit">送出回饋</button></div></div>`;
+    <div class="row between" style="margin-top:14px"><span class="muted small" id="rateMsg">${locked ? "✅ 已送出回饋，如需更改請重新測驗" : ""}</span><button id="rateSubmit" ${locked ? "disabled" : ""}>送出回饋</button></div></div>`;
 }
 function bindFeedback(clientId) {
   const input = $("#rateInput"), val = $("#rateVal"), btn = $("#rateSubmit"), msg = $("#rateMsg");
   input.oninput = () => { val.textContent = `${input.value}・${RATE_LABELS[input.value]}`; };
-  btn.onclick = () => busy(btn, "送出中…", async () => {
-    await rpc("submit_feedback", { p_client: clientId, p_rating: +input.value });
-    msg.textContent = "✅ 已送出，謝謝你的回饋！"; toast("已送出回饋");
-  });
+  const lock = text => { input.disabled = true; btn.disabled = true; msg.textContent = text; };
+  btn.onclick = async () => {
+    const t = btn.textContent; btn.disabled = true; btn.textContent = "送出中…";
+    try {
+      await rpc("submit_feedback", { p_client: clientId, p_rating: +input.value });
+      lock("✅ 已送出回饋，如需更改請重新測驗"); toast("已送出回饋");
+    } catch (e) {
+      if (/already submitted/.test(e.message)) lock("✅ 已送出過回饋，如需更改請重新測驗");
+      else { toast("送出失敗：" + e.message); btn.disabled = false; }
+    } finally { btn.textContent = t; }
+  };
 }
-const busy = async (btn, loadingText, fn) => {
-  const t = btn.textContent; btn.disabled = true; btn.textContent = loadingText;
-  try { await fn(); } catch (e) { toast("送出失敗：" + e.message); } finally { btn.disabled = false; btn.textContent = t; }
-};
 async function selfResult(r, saved) {
   adaptMap = await loadAdaptMap();
   const { p, s } = styleParts(r.style);
