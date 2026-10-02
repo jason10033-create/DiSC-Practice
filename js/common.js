@@ -141,6 +141,13 @@ const SEC_OTHER = {
   S: "對方也帶有 S 的傾向：更在意和諧與節奏，決定前請給予適應與思考的空間。",
   C: "對方也帶有 C 的傾向：更在意邏輯與正確，請備妥依據與細節。"
 };
+/* 「需要對方買單時」專用的輔型補充，刻意與 SEC_OTHER（配合對方溝通）寫不同角度，避免兩欄內容重複 */
+const SEC_OTHER_ASK = {
+  D: "對方也帶有 D 的傾向：除了說明好處，也給他一點挑戰或自主空間，讓他覺得是自己做的決定，而不是被你說服的。",
+  I: "對方也帶有 i 的傾向：除了講道理，也讓他有機會公開表態支持、被看見是促成這件事的人，他會更願意買單。",
+  S: "對方也帶有 S 的傾向：除了說明好處，也給他一點時間消化、並確認不會影響團隊和諧，他才會真心點頭而不是口頭答應。",
+  C: "對方也帶有 C 的傾向：除了說明好處，最好附上具體的依據或先例，讓他確認這個決定經得起檢驗，才會真正放心支持。"
+};
 const SEC_ME = {
   D: "你也具備 D 的果斷，必要時可以更明確地表態、推進決定。",
   I: "你也具備 i 的感染力，可以善用熱情與故事讓訊息更有溫度。",
@@ -289,7 +296,7 @@ function defaultCombo(my, other, direction = "peer") {
   }
   if (groundTable) ground = groundTable[a.p + b.p];
   if (a.s) leverage.push(SEC_ME[a.s]);
-  if (b.s) ask.push(SEC_OTHER[b.s]);
+  if (b.s) ask.push(SEC_OTHER_ASK[b.s]);
   return { summary, adapt, leverage, ground: [ground], ask, avoid };
 }
 const isEdited = (map, key) => !!map[key];
