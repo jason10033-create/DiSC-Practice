@@ -444,4 +444,7 @@ const DEFAULT_INTRO = {
 };
 const getIntro = (map, kind) => ({ ...DEFAULT_INTRO[kind], ...((map && map["intro_" + kind]) || {}) });
 
+/* 「看懂自己」結果準確度回饋（前台滑桿／後台列表共用） */
+const RATE_LABELS = { 1: "非常不準確", 2: "不太準確", 3: "普通", 4: "大多準確", 5: "非常準確" };
+
 initTheme();

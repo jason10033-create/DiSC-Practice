@@ -181,6 +181,28 @@ async function selfSubmit() {
   const res = await rpc("get_my_result", { p_client: clientId });
   selfShowSaved(res);
 }
+function feedbackBlock(r) {
+  const val = r.accuracy_feedback || 3;
+  return `<div class="card" style="margin-top:16px">
+    <h3 style="margin:0 0 4px">這個結果準不準？</h3>
+    <p class="muted small" style="margin:0 0 14px">評估結果的準確度回饋，拖曳滑桿選擇你的感受，會一併記錄給講師參考。</p>
+    <div class="rate-current" id="rateVal">${val}・${RATE_LABELS[val]}</div>
+    <input type="range" id="rateInput" min="1" max="5" step="1" value="${val}">
+    <div class="rate-labels"><span>1 非常不準確</span><span>5 非常準確</span></div>
+    <div class="row between" style="margin-top:14px"><span class="muted small" id="rateMsg">${r.accuracy_feedback ? "已送出過回饋，調整後可再次送出" : ""}</span><button id="rateSubmit">送出回饋</button></div></div>`;
+}
+function bindFeedback(clientId) {
+  const input = $("#rateInput"), val = $("#rateVal"), btn = $("#rateSubmit"), msg = $("#rateMsg");
+  input.oninput = () => { val.textContent = `${input.value}・${RATE_LABELS[input.value]}`; };
+  btn.onclick = () => busy(btn, "送出中…", async () => {
+    await rpc("submit_feedback", { p_client: clientId, p_rating: +input.value });
+    msg.textContent = "✅ 已送出，謝謝你的回饋！"; toast("已送出回饋");
+  });
+}
+const busy = async (btn, loadingText, fn) => {
+  const t = btn.textContent; btn.disabled = true; btn.textContent = loadingText;
+  try { await fn(); } catch (e) { toast("送出失敗：" + e.message); } finally { btn.disabled = false; btn.textContent = t; }
+};
 async function selfResult(r, saved) {
   adaptMap = await loadAdaptMap();
   const { p, s } = styleParts(r.style);
@@ -198,8 +220,10 @@ async function selfResult(r, saved) {
       <div class="box"><h3>別人怎麼跟你溝通最有效？</h3><ul>${tp.dos.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div></div>
     <p class="muted small" style="margin-top:14px">最後測評時間：${new Date(r.updated_at).toLocaleString("zh-TW")}。DiSC 描述的是行為傾向，會隨情境變化，結果僅供參考。</p>
     <div class="row between" style="margin-top:12px"><button class="ghost" id="redo">重新測驗</button>
-      <a class="btn" href="#/adapt">前往彈性調適 →</a></div></div></div>`;
+      <a class="btn" href="#/adapt">前往彈性調適 →</a></div></div>
+    ${feedbackBlock(r)}</div>`;
   $("#redo").onclick = () => { if (confirm("重新測驗會覆蓋原本的紀錄，確定嗎？")) selfIntro(); };
+  bindFeedback(clientId);
 }
 
 /* ---------- 03 識別他人 ---------- */

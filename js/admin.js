@@ -264,15 +264,16 @@ function qCard(q, i, n) {
 /* ---------- 填答者結果 ---------- */
 async function vResults() {
   const rows = await A("admin_list_results");
+  const rateText = r => r.accuracy_feedback ? `${r.accuracy_feedback}・${RATE_LABELS[r.accuracy_feedback]}` : `<span class="muted">未回饋</span>`;
   $("#view").innerHTML = `<div class="card"><div class="row between"><h2>👥 填答者結果（${rows.length}）</h2><button class="soft" id="csv" ${rows.length ? "" : "disabled"}>⬇ 匯出 CSV</button></div>
-    <div class="scroll-x"><table class="tbl"><thead><tr><th>姓名</th><th>風格</th><th>D</th><th>i</th><th>S</th><th>C</th><th>填答時間</th><th></th></tr></thead><tbody>
+    <div class="scroll-x"><table class="tbl"><thead><tr><th>姓名</th><th>風格</th><th>D</th><th>i</th><th>S</th><th>C</th><th>準確度回饋</th><th>填答時間</th><th></th></tr></thead><tbody>
     ${rows.map(r => `<tr><td><b>${esc(r.user_name)}</b></td><td>${r.style ? `<span class="pill t-${r.primary_types[0]}">${esc(styleLabel(r.style))}</span>` : `<span class="muted small">舊版</span>`}</td>
-      <td>${r.score_d}</td><td>${r.score_i}</td><td>${r.score_s}</td><td>${r.score_c}</td><td class="small">${new Date(r.created_at).toLocaleString("zh-TW")}</td>
-      <td><button class="danger sm" data-del="${r.id}">刪除</button></td></tr>`).join("") || `<tr><td colspan="8" class="muted">尚無資料</td></tr>`}</tbody></table></div></div>`;
+      <td>${r.score_d}</td><td>${r.score_i}</td><td>${r.score_s}</td><td>${r.score_c}</td><td class="small">${rateText(r)}</td><td class="small">${new Date(r.created_at).toLocaleString("zh-TW")}</td>
+      <td><button class="danger sm" data-del="${r.id}">刪除</button></td></tr>`).join("") || `<tr><td colspan="9" class="muted">尚無資料</td></tr>`}</tbody></table></div></div>`;
   $$("[data-del]").forEach(b => b.onclick = () => { const r = rows.find(x => x.id === b.dataset.del); if (confirm(`確定刪除「${r.user_name}」的測評結果？此動作無法復原。`)) busy(b, async () => { await A("admin_delete_result", { p_id: b.dataset.del }); toast("已刪除"); vResults(); }); });
   $("#csv").onclick = () => {
-    const head = ["姓名", "風格", "主型", "輔型", "D", "i", "S", "C", "填答時間"];
-    const body = rows.map(r => [r.user_name, r.style ? styleLabel(r.style) : "", r.primary_types[0], r.primary_types[1] || "", r.score_d, r.score_i, r.score_s, r.score_c, new Date(r.created_at).toLocaleString("zh-TW")]);
+    const head = ["姓名", "風格", "主型", "輔型", "D", "i", "S", "C", "準確度回饋(1-5)", "填答時間"];
+    const body = rows.map(r => [r.user_name, r.style ? styleLabel(r.style) : "", r.primary_types[0], r.primary_types[1] || "", r.score_d, r.score_i, r.score_s, r.score_c, r.accuracy_feedback || "", new Date(r.created_at).toLocaleString("zh-TW")]);
     const csv = [head, ...body].map(l => l.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\r\n");
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv" })); a.download = "disc_results.csv"; a.click();
   };
@@ -287,11 +288,19 @@ async function vReport() {
   const prim = { D: 0, I: 0, S: 0, C: 0 }; rows.forEach(r => prim[r.primary_types[0]]++);
   const sty = Object.fromEntries(STYLES.map(s => [s, 0])); rows.forEach(r => { if (r.style && sty[r.style] !== undefined) sty[r.style]++; });
   const maxS = Math.max(1, ...Object.values(sty));
+  const rated = rows.filter(r => r.accuracy_feedback);
+  const rateCount = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }; rated.forEach(r => rateCount[r.accuracy_feedback]++);
+  const avgRate = rated.length ? (rated.reduce((s, r) => s + r.accuracy_feedback, 0) / rated.length).toFixed(1) : null;
+  const maxRate = Math.max(1, ...Object.values(rateCount));
   $("#view").innerHTML = `<div class="grid c2">
     <div class="card"><h2>主型人數分布（共 ${n} 人）</h2>${TYPES.map(t => `<div class="bar-row t-${t}"><b>${TLABEL[t]} ${TNAME[t]}</b><div class="track"><div class="fill" style="width:${prim[t] / n * 100}%"></div></div><span>${prim[t]}人</span></div>`).join("")}</div>
     <div class="card"><h2>全體平均分數</h2>${barsHtml(avg)}</div></div>
   <div class="card" style="margin-top:16px"><h2>DiSC 分布圖</h2><p class="muted">每個點代表一位填答者，位置依其 D／i／S／C 分數計算；分數雷同的填答者會合併成同一個圓圈並標示人數，滑鼠移到點上可看到所有人的姓名。</p>
     <div class="circleWrap" style="max-width:360px">${discScatterSvg(rows)}</div></div>
+  <div class="card" style="margin-top:16px"><h2>評估結果準確度回饋</h2>
+    ${rated.length ? `<p class="muted">已有 ${rated.length} / ${n} 人回饋，平均 <b>${avgRate}</b> 分（滿分 5）。</p>
+      ${[5, 4, 3, 2, 1].map(k => `<div class="bar-row" style="grid-template-columns:90px 1fr 44px"><b>${k}・${RATE_LABELS[k]}</b><div class="track"><div class="fill" style="width:${rateCount[k] / maxRate * 100}%;background:var(--brand)"></div></div><span>${rateCount[k]}人</span></div>`).join("")}`
+      : `<p class="muted">目前還沒有人回饋。</p>`}</div>
   <div class="card" style="margin-top:16px"><h2>12 種風格分布</h2>${STYLES.map(s => `<div class="bar-row t-${styleParts(s).p}" style="grid-template-columns:70px 1fr 44px"><b>${styleLabel(s)}</b><div class="track"><div class="fill" style="width:${sty[s] / maxS * 100}%"></div></div><span>${sty[s]}人</span></div>`).join("")}
     <p class="muted small">僅統計使用新版測評（含風格代碼）的紀錄。</p></div>`;
 }
