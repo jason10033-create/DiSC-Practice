@@ -183,7 +183,7 @@ async function selfSubmit() {
 }
 function feedbackBlock(r) {
   const val = r.accuracy_feedback || 3, locked = !!r.accuracy_feedback;
-  return `<div class="card" style="margin-top:16px">
+  return `<div style="margin-top:18px;padding:14px 16px;background:var(--surface2);border-radius:12px">
     <h3 style="margin:0 0 14px">評估結果的準確度回饋</h3>
     <div class="rate-current" id="rateVal">${val}・${RATE_LABELS[val]}</div>
     <input type="range" id="rateInput" min="1" max="5" step="1" value="${val}" ${locked ? "disabled" : ""}>
@@ -221,9 +221,9 @@ async function selfResult(r, saved) {
         <p><b>在乎：</b>${esc(tp.want)}<br><b>壓力來源：</b>${esc(tp.stress)}</p></div>${sec ? "" : ""}${sec}
       <div class="box"><h3>別人怎麼跟你溝通最有效？</h3><ul>${tp.dos.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div></div>
     <p class="muted small" style="margin-top:14px">最後測評時間：${new Date(r.updated_at).toLocaleString("zh-TW")}。DiSC 描述的是行為傾向，會隨情境變化，結果僅供參考。</p>
-    <div class="row between" style="margin-top:12px"><button class="ghost" id="redo">重新測驗</button>
-      <a class="btn" href="#/adapt">前往彈性調適 →</a></div></div>
-    ${feedbackBlock(r)}</div>`;
+    ${feedbackBlock(r)}
+    <div class="row between" style="margin-top:16px"><button class="ghost" id="redo">重新測驗</button>
+      <a class="btn" href="#/adapt">前往彈性調適 →</a></div></div></div>`;
   $("#redo").onclick = () => { if (confirm("重新測驗會覆蓋原本的紀錄，確定嗎？")) selfIntro(); };
   bindFeedback(clientId);
 }
