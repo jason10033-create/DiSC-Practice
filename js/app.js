@@ -93,23 +93,34 @@ async function loadTools() {
     select("article_categories", "order=sort.asc,created_at.asc")]);
   toolsLoaded = true;
 }
-/* 依分類分組（分類順序 → 教材順序）；沒有分類的教材放最後 */
-function artGroups() {
-  const gs = artCats.map(c => ({ name: c.name, items: articles.filter(a => a.category_id === c.id) }));
+/* 依分類分組（分類順序 → 教材順序）；沒有分類的教材放最後。withEmpty＝連沒有教材的分類也列出 */
+function artGroups(withEmpty = false) {
+  const gs = artCats.map((c, i) => ({ id: c.id, name: c.name, color: TYPES[i % 4], items: articles.filter(a => a.category_id === c.id) }));
   const rest = articles.filter(a => !artCats.some(c => c.id === a.category_id));
-  if (rest.length) gs.push({ name: artCats.length ? "其他教材" : "", items: rest });
-  return gs.filter(g => g.items.length);
+  if (rest.length) gs.push({ id: "other", name: artCats.length ? "其他教材" : "", color: TYPES[artCats.length % 4], items: rest });
+  return withEmpty ? gs : gs.filter(g => g.items.length);
+}
+let toolsCat = "all"; // 解密工具目前選的分類："all" 或分類 id（"other"＝未分類）
+function renderToolsList() {
+  const all = artGroups(true), gs = artGroups();
+  if (toolsCat !== "all" && !all.some(g => g.id === toolsCat)) toolsCat = "all";
+  const shown = toolsCat === "all" ? gs : all.filter(g => g.id === toolsCat);
+  const chips = all.length > 1 || (all.length === 1 && all[0].name) ? `<div class="row" style="gap:8px;margin-top:16px">
+    <button class="chip ${toolsCat === "all" ? "on" : ""}" data-cat="all">全部（${articles.length}）</button>
+    ${all.filter(g => g.name).map(g => `<button class="chip t-${g.color} ${toolsCat === g.id ? "on" : ""}" data-cat="${g.id}">${esc(g.name)}（${g.items.length}）</button>`).join("")}</div>` : "";
+  app.innerHTML = back() + `<h1>📖 解密工具</h1><p class="muted">掌握全球最廣泛使用的人際風格工具 DiSC 的原理與應用。</p>${chips}
+    ${shown.some(g => g.items.length) ? shown.filter(g => g.items.length).map(g => `${g.name ? `<h2 style="margin:28px 0 10px;color:var(--c)" class="t-${g.color}">${esc(g.name)}</h2>` : `<div style="margin-top:16px"></div>`}
+      <div class="grid">${g.items.map((a, i) => `
+        <button class="article-item" data-id="${a.id}"><span class="pill t-${g.color}">${i + 1}</span> <strong style="display:inline">${esc(a.title)}</strong>
+        <div class="muted small">${esc(a.summary)}</div></button>`).join("")}</div>`).join("")
+      : `<p class="muted" style="margin-top:20px">${toolsCat === "all" ? "目前尚無教材。" : "這個分類目前還沒有教材。"}</p>`}`;
+  $$("[data-cat]").forEach(b => b.onclick = () => { toolsCat = b.dataset.cat; renderToolsList(); });
+  $$(".article-item").forEach(b => b.onclick = () => location.hash = "#/tools/" + b.dataset.id);
 }
 async function toolsList() {
   app.innerHTML = back() + `<h1>📖 解密工具</h1><p class="muted">掌握 DiSC 的原理與應用。</p><p class="muted">載入中…</p>`;
   await loadTools();
-  const gs = artGroups();
-  app.innerHTML = back() + `<h1>📖 解密工具</h1><p class="muted">掌握全球最廣泛使用的人際風格工具 DiSC 的原理與應用。</p>
-    ${gs.length ? gs.map((g, gi) => `${g.name ? `<h2 style="margin:28px 0 10px">${esc(g.name)}</h2>` : `<div style="margin-top:16px"></div>`}
-      <div class="grid">${g.items.map((a, i) => `
-        <button class="article-item" data-id="${a.id}"><span class="pill t-${TYPES[gi % 4]}">${i + 1}</span> <strong style="display:inline">${esc(a.title)}</strong>
-        <div class="muted small">${esc(a.summary)}</div></button>`).join("")}</div>`).join("") : `<p class="muted" style="margin-top:16px">目前尚無教材。</p>`}`;
-  $$(".article-item").forEach(b => b.onclick = () => location.hash = "#/tools/" + b.dataset.id);
+  renderToolsList();
 }
 async function toolsArticle(id) {
   if (!toolsLoaded) await loadTools();
@@ -117,8 +128,9 @@ async function toolsArticle(id) {
   const i = ordered.findIndex(a => a.id === id), a = ordered[i];
   if (!a) return toolsList();
   const prev = ordered[i - 1], next = ordered[i + 1];
+  const cat = artGroups().find(g => g.items.some(x => x.id === id));
   app.innerHTML = `<div class="narrow" style="margin:auto">${back("← 所有教材", "#/tools")}
-    <div class="card"><h1>${esc(a.title)}</h1><p class="muted">${esc(a.summary)}</p>${(a.blocks || []).map(renderBlock).join("")}</div>
+    <div class="card">${cat && cat.name ? `<span class="pill t-${cat.color}">${esc(cat.name)}</span>` : ""}<h1 style="margin-top:8px">${esc(a.title)}</h1><p class="muted">${esc(a.summary)}</p>${(a.blocks || []).map(renderBlock).join("")}</div>
     <div class="row between" style="margin-top:16px">
       ${prev ? `<a class="btn ghost" href="#/tools/${prev.id}">← ${esc(prev.title)}</a>` : "<span></span>"}
       ${next ? `<a class="btn" href="#/tools/${next.id}">${esc(next.title)} →</a>` : ""}</div></div>`;
