@@ -86,21 +86,37 @@ function home() {
 const back = (t = "← 回首頁", h = "#/") => `<p><a href="${h}">${t}</a></p>`;
 
 /* ---------- 01 解密工具 ---------- */
-let articles = [];
+let articles = [], artCats = [], toolsLoaded = false;
+async function loadTools() {
+  [articles, artCats] = await Promise.all([
+    select("articles", "order=sort.asc,created_at.asc"),
+    select("article_categories", "order=sort.asc,created_at.asc")]);
+  toolsLoaded = true;
+}
+/* 依分類分組（分類順序 → 教材順序）；沒有分類的教材放最後 */
+function artGroups() {
+  const gs = artCats.map(c => ({ name: c.name, items: articles.filter(a => a.category_id === c.id) }));
+  const rest = articles.filter(a => !artCats.some(c => c.id === a.category_id));
+  if (rest.length) gs.push({ name: artCats.length ? "其他教材" : "", items: rest });
+  return gs.filter(g => g.items.length);
+}
 async function toolsList() {
   app.innerHTML = back() + `<h1>📖 解密工具</h1><p class="muted">掌握 DiSC 的原理與應用。</p><p class="muted">載入中…</p>`;
-  articles = await select("articles", "order=sort.asc,created_at.asc");
+  await loadTools();
+  const gs = artGroups();
   app.innerHTML = back() + `<h1>📖 解密工具</h1><p class="muted">掌握全球最廣泛使用的人際風格工具 DiSC 的原理與應用。</p>
-    <div class="grid" style="margin-top:16px">${articles.length ? articles.map((a, i) => `
-      <button class="article-item" data-id="${a.id}"><span class="pill t-D">${i + 1}</span> <strong style="display:inline">${esc(a.title)}</strong>
-      <div class="muted small">${esc(a.summary)}</div></button>`).join("") : `<p class="muted">目前尚無教材。</p>`}</div>`;
+    ${gs.length ? gs.map((g, gi) => `${g.name ? `<h2 style="margin:28px 0 10px">${esc(g.name)}</h2>` : `<div style="margin-top:16px"></div>`}
+      <div class="grid">${g.items.map((a, i) => `
+        <button class="article-item" data-id="${a.id}"><span class="pill t-${TYPES[gi % 4]}">${i + 1}</span> <strong style="display:inline">${esc(a.title)}</strong>
+        <div class="muted small">${esc(a.summary)}</div></button>`).join("")}</div>`).join("") : `<p class="muted" style="margin-top:16px">目前尚無教材。</p>`}`;
   $$(".article-item").forEach(b => b.onclick = () => location.hash = "#/tools/" + b.dataset.id);
 }
 async function toolsArticle(id) {
-  if (!articles.length) articles = await select("articles", "order=sort.asc,created_at.asc");
-  const i = articles.findIndex(a => a.id === id), a = articles[i];
+  if (!toolsLoaded) await loadTools();
+  const ordered = artGroups().flatMap(g => g.items);
+  const i = ordered.findIndex(a => a.id === id), a = ordered[i];
   if (!a) return toolsList();
-  const prev = articles[i - 1], next = articles[i + 1];
+  const prev = ordered[i - 1], next = ordered[i + 1];
   app.innerHTML = `<div class="narrow" style="margin:auto">${back("← 所有教材", "#/tools")}
     <div class="card"><h1>${esc(a.title)}</h1><p class="muted">${esc(a.summary)}</p>${(a.blocks || []).map(renderBlock).join("")}</div>
     <div class="row between" style="margin-top:16px">

@@ -160,6 +160,8 @@ figcaption { font-size:13px; color:var(--muted); margin-top:4px; }
 table.tbl { width:100%; border-collapse:collapse; font-size:14px; }
 table.tbl th { text-align:left; color:var(--muted); font-weight:700; padding:8px; border-bottom:2px solid var(--line); }
 table.tbl td { padding:8px; border-bottom:1px solid var(--line); vertical-align:middle; }
+table.tbl tr.cathead td { background:var(--surface2); font-weight:800; }
+table.tbl input[type=checkbox] { width:18px; height:18px; accent-color:var(--brand); }
 .scroll-x { overflow-x:auto; }
 .qcard { border:1px solid var(--line); border-radius:14px; padding:14px; margin-top:12px; background:var(--surface); }
 .qcard .opts { display:grid; gap:8px; margin-top:8px; }

@@ -138,35 +138,67 @@ async function vIntro(kind) {
 /* ---------- 解密工具：教材 ---------- */
 let editing = null;
 async function vTools() {
-  const arts = await A("admin_list_articles");
-  if (editing) return articleEditor();
-  $("#view").innerHTML = `<div class="card"><div class="row between"><h2>📖 教材管理</h2><button id="newArt">＋ 新增教材</button></div>
-    <p class="muted">學員在「解密工具」看到的內容。可用文字、圖片、影片、PDF、提示框、連結組成。</p>
-    <div class="scroll-x"><table class="tbl"><thead><tr><th>順序</th><th>標題</th><th>狀態</th><th>更新</th><th></th></tr></thead><tbody>
-    ${arts.map((a, i) => `<tr><td><button class="ghost sm" data-up="${i}" ${i === 0 ? "disabled" : ""}>↑</button> <button class="ghost sm" data-down="${i}" ${i === arts.length - 1 ? "disabled" : ""}>↓</button></td>
-      <td><b>${esc(a.title)}</b><div class="small muted">${esc(a.summary)}</div></td><td>${a.published ? "✅ 公開" : "🚫 隱藏"}</td>
+  const [arts, cats] = await Promise.all([A("admin_list_articles"), select("article_categories", "order=sort.asc,created_at.asc")]);
+  if (editing) return articleEditor(cats);
+  // 依分類分組（分類順序 → 教材順序），沒有分類的教材放最後
+  const groups = cats.map(c => ({ cat: c, items: arts.filter(a => a.category_id === c.id) }));
+  const rest = arts.filter(a => !cats.some(c => c.id === a.category_id));
+  if (rest.length) groups.push({ cat: null, items: rest });
+  const catOptions = sel => `<option value="">未分類</option>${cats.map(c => `<option value="${c.id}" ${sel === c.id ? "selected" : ""}>${esc(c.name)}</option>`).join("")}`;
+  const artRow = (a, i, n) => `<tr><td><button class="ghost sm" data-up="${a.id}" ${i === 0 ? "disabled" : ""}>↑</button> <button class="ghost sm" data-down="${a.id}" ${i === n - 1 ? "disabled" : ""}>↓</button></td>
+      <td><b>${esc(a.title)}</b><div class="small muted">${esc(a.summary)}</div></td>
+      <td><select data-setcat="${a.id}" style="min-width:110px">${catOptions(a.category_id)}</select></td>
+      <td>${a.published ? "公開" : "隱藏"}</td>
       <td class="small">${new Date(a.updated_at).toLocaleDateString("zh-TW")}</td>
-      <td><button class="soft sm" data-edit="${a.id}">編輯</button> <button class="danger sm" data-del="${a.id}">刪除</button></td></tr>`).join("")}
+      <td><button class="soft sm" data-edit="${a.id}">編輯</button> <button class="danger sm" data-del="${a.id}">刪除</button></td></tr>`;
+  $("#view").innerHTML = `<div class="card"><h2>教材分類</h2>
+    <p class="muted">學員在「解密工具」會依分類分區顯示教材。可新增、改名、調整順序或刪除分類（刪除分類不會刪除教材，教材會變成「未分類」）。</p>
+    ${cats.map((c, i) => `<div class="row" style="gap:8px;margin-top:8px">
+      <button class="ghost sm" data-catup="${c.id}" ${i === 0 ? "disabled" : ""}>↑</button><button class="ghost sm" data-catdown="${c.id}" ${i === cats.length - 1 ? "disabled" : ""}>↓</button>
+      <input type="text" data-catname="${c.id}" value="${esc(c.name)}" maxlength="40" style="max-width:240px">
+      <button class="soft sm" data-catsave="${c.id}">儲存名稱</button><button class="danger sm" data-catdel="${c.id}">刪除分類</button>
+      <span class="small muted">${groups.find(g => g.cat && g.cat.id === c.id).items.length} 篇教材</span></div>`).join("") || `<p class="muted">目前沒有分類。</p>`}
+    <div class="row" style="gap:8px;margin-top:14px"><input type="text" id="newCat" placeholder="新分類名稱，例如：實務應用" maxlength="40" style="max-width:280px"><button id="addCat" class="soft">＋ 新增分類</button></div></div>
+  <div class="card" style="margin-top:16px"><div class="row between"><h2>教材列表</h2><button id="newArt">＋ 新增教材</button></div>
+    <p class="muted">學員在「解密工具」看到的內容。可用文字、圖片、影片、PDF、提示框、連結組成；用「分類」欄位可直接調整教材所屬分類。</p>
+    <div class="scroll-x"><table class="tbl"><thead><tr><th>順序</th><th>標題</th><th>分類</th><th>狀態</th><th>更新</th><th></th></tr></thead><tbody>
+    ${groups.map(g => `<tr class="cathead"><td colspan="6">${g.cat ? esc(g.cat.name) : "未分類"}（${g.items.length}）</td></tr>${g.items.map((a, i) => artRow(a, i, g.items.length)).join("") || `<tr><td colspan="6" class="muted small">這個分類目前沒有教材</td></tr>`}`).join("")}
     </tbody></table></div></div>`;
-  $("#newArt").onclick = () => { editing = { title: "", summary: "", sort: (arts.at(-1)?.sort ?? 0) + 10, published: true, blocks: [] }; vTools(); };
+  const run = async (fn, ok) => { try { await fn(); if (ok) toast(ok); vTools(); } catch (e) { toast("失敗：" + (e.message || e)); console.error(e); } };
+  // --- 分類管理 ---
+  $("#addCat").onclick = () => { const name = $("#newCat").value.trim(); if (!name) return toast("請輸入分類名稱");
+    run(() => A("admin_upsert_category", { r: { name, sort: (cats.at(-1)?.sort ?? 0) + 10 } }), "已新增分類"); };
+  $$("[data-catsave]").forEach(b => b.onclick = () => { const c = cats.find(x => x.id === b.dataset.catsave), name = $(`[data-catname="${c.id}"]`).value.trim(); if (!name) return toast("分類名稱不可空白");
+    run(() => A("admin_upsert_category", { r: { id: c.id, name, sort: c.sort } }), "已儲存"); });
+  $$("[data-catdel]").forEach(b => b.onclick = () => { const c = cats.find(x => x.id === b.dataset.catdel);
+    if (confirm(`確定刪除分類「${c.name}」？此分類下的教材會變成「未分類」，教材本身不會被刪除。`)) run(() => A("admin_delete_category", { p_id: c.id }), "已刪除分類"); });
+  const moveCat = (id, d) => () => { const i = cats.findIndex(c => c.id === id), arr = cats.slice(); [arr[i], arr[i + d]] = [arr[i + d], arr[i]];
+    run(async () => { for (let k = 0; k < arr.length; k++) if (arr[k].sort !== (k + 1) * 10) await A("admin_upsert_category", { r: { id: arr[k].id, name: arr[k].name, sort: (k + 1) * 10 } }); }); };
+  $$("[data-catup]").forEach(b => b.onclick = moveCat(b.dataset.catup, -1));
+  $$("[data-catdown]").forEach(b => b.onclick = moveCat(b.dataset.catdown, 1));
+  // --- 教材 ---
+  $("#newArt").onclick = () => { editing = { title: "", summary: "", sort: (arts.at(-1)?.sort ?? 0) + 10, published: true, blocks: [], category_id: cats[0]?.id ?? null }; vTools(); };
   $$("[data-edit]").forEach(b => b.onclick = () => { editing = JSON.parse(JSON.stringify(arts.find(a => a.id === b.dataset.edit))); vTools(); });
   $$("[data-del]").forEach(b => b.onclick = () => { if (confirm("確定刪除這篇教材？")) busy(b, async () => { await A("admin_delete_article", { p_id: b.dataset.del }); toast("已刪除"); vTools(); }); });
-  const move = (i, d) => async () => {
-    const a = arts[i], o = arts[i + d]; if (!o) return;
-    // 重新編號避免相同 sort
-    const arr = arts.slice(); [arr[i], arr[i + d]] = [arr[i + d], arr[i]];
-    for (let k = 0; k < arr.length; k++) if (arr[k].sort !== k * 10) await A("admin_upsert_article", { r: { ...arr[k], sort: k * 10 } });
-    vTools();
+  $$("[data-setcat]").forEach(s => s.onchange = () => { const a = arts.find(x => x.id === s.dataset.setcat), maxSort = Math.max(0, ...arts.map(x => x.sort));
+    // 換分類後排在新分類的最後面
+    run(() => A("admin_upsert_article", { r: { ...a, category_id: s.value || null, sort: maxSort + 10 } }), "已更新分類"); });
+  const move = (id, d) => () => {
+    const g = groups.find(x => x.items.some(a => a.id === id)), i = g.items.findIndex(a => a.id === id); if (!g.items[i + d]) return;
+    [g.items[i], g.items[i + d]] = [g.items[i + d], g.items[i]];
+    const order = groups.flatMap(x => x.items); // 全部重新編號，避免相同 sort
+    run(async () => { for (let k = 0; k < order.length; k++) if (order[k].sort !== k * 10) await A("admin_upsert_article", { r: { ...order[k], sort: k * 10 } }); });
   };
-  $$("[data-up]").forEach(b => b.onclick = () => busy(b, move(+b.dataset.up, -1)));
-  $$("[data-down]").forEach(b => b.onclick = () => busy(b, move(+b.dataset.down, 1)));
+  $$("[data-up]").forEach(b => b.onclick = move(b.dataset.up, -1));
+  $$("[data-down]").forEach(b => b.onclick = move(b.dataset.down, 1));
 }
 const BTYPES = { heading: "標題", text: "文字", image: "圖片", video: "影片", pdf: "PDF", callout: "提示框", link: "連結" };
-function articleEditor() {
+function articleEditor(cats = []) {
   const e = editing;
   $("#view").innerHTML = `<div class="card"><div class="row between"><h2>${e.id ? "編輯教材" : "新增教材"}</h2><button class="ghost" id="cancel">← 返回列表</button></div>
     <label class="f">標題</label><input type="text" id="aTitle" value="${esc(e.title)}">
     <label class="f">簡介（顯示於列表）</label><input type="text" id="aSum" value="${esc(e.summary)}">
+    <label class="f">分類</label><select id="aCat" style="max-width:260px"><option value="">未分類</option>${cats.map(c => `<option value="${c.id}" ${e.category_id === c.id ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select>
     <label class="switch" style="margin-top:12px"><input type="checkbox" id="aPub" ${e.published ? "checked" : ""}> 公開給學員</label>
     <h3 style="margin-top:20px">內容區塊</h3><div id="blocks"></div>
     <div class="row" style="margin-top:12px">${Object.entries(BTYPES).map(([k, t]) => `<button class="soft sm" data-add="${k}">＋ ${t}</button>`).join("")}</div>
@@ -209,7 +241,7 @@ function articleEditor() {
       e.blocks[i].url = j.url; if (!e.blocks[i].caption && e.blocks[i].type === "pdf") e.blocks[i].caption = j.name; drawBlocks(); toast("上傳完成");
     } catch (err) { st.textContent = "上傳失敗：" + err.message; t.disabled = false; }
   });
-  const sync = () => { e.title = $("#aTitle").value.trim(); e.summary = $("#aSum").value.trim(); e.published = $("#aPub").checked; };
+  const sync = () => { e.title = $("#aTitle").value.trim(); e.summary = $("#aSum").value.trim(); e.published = $("#aPub").checked; e.category_id = $("#aCat").value || null; };
   $("#preview").onclick = () => { sync(); const p = $("#pv"); p.classList.toggle("hidden"); p.innerHTML = `<h1>${esc(e.title)}</h1><p class="muted">${esc(e.summary)}</p>${e.blocks.map(renderBlock).join("")}`; };
   $("#save").onclick = ev => busy(ev.target, async () => {
     sync(); if (!e.title) return toast("請輸入標題");
@@ -262,28 +294,78 @@ function qCard(q, i, n) {
 }
 
 /* ---------- 填答者結果 ---------- */
+let resGroup = "all"; // 填答者篩選範圍："all"＝全部、"none"＝未分組、其餘為群組 id（填答者結果與彙總報表共用）
+async function loadResults() {
+  const [all, groups] = await Promise.all([A("admin_list_results"), A("admin_list_groups")]);
+  if (resGroup !== "all" && resGroup !== "none" && !groups.some(g => g.id === resGroup)) resGroup = "all"; // 群組已被刪除
+  const inGroup = (r, id) => id === "all" ? true : id === "none" ? !r.group_id : r.group_id === id;
+  return { all, groups, rows: all.filter(r => inGroup(r, resGroup)), count: id => all.filter(r => inGroup(r, id)).length,
+    gname: id => (groups.find(g => g.id === id) || {}).name || "" };
+}
 async function vResults() {
-  const rows = await A("admin_list_results");
-  const rateText = r => r.accuracy_feedback ? `${r.accuracy_feedback}・${RATE_LABELS[r.accuracy_feedback]}` : `<span class="muted">未回饋</span>`;
-  $("#view").innerHTML = `<div class="card"><div class="row between"><h2>👥 填答者結果（${rows.length}）</h2><button class="soft" id="csv" ${rows.length ? "" : "disabled"}>⬇ 匯出 CSV</button></div>
-    <div class="scroll-x"><table class="tbl"><thead><tr><th>姓名</th><th>風格</th><th>D</th><th>i</th><th>S</th><th>C</th><th>準確度回饋</th><th>填答時間</th><th></th></tr></thead><tbody>
-    ${rows.map(r => `<tr><td><b>${esc(r.user_name)}</b></td><td>${r.style ? `<span class="pill t-${r.primary_types[0]}">${esc(styleLabel(r.style))}</span>` : `<span class="muted small">舊版</span>`}</td>
+  const { groups, rows, count, gname } = await loadResults();
+  const cur = groups.find(g => g.id === resGroup);
+  const filters = [["all", "全部"], ["none", "未分組"], ...groups.map(g => [g.id, g.name])];
+  const rateText = r => r.accuracy_feedback || `<span class="muted">-</span>`;
+  $("#view").innerHTML = `<div class="card"><h2>填答者群組</h2>
+    <p class="muted">建立群組（例如「HR測試群組」「11/16 課程群組」），再把填答者移入，方便分開檢視與統計。刪除群組不會刪除填答者，成員會回到「未分組」。</p>
+    <div class="row" style="gap:8px">${filters.map(([id, name]) => `<button class="${resGroup === id ? "" : "ghost"} sm" data-filter="${esc(id)}">${esc(name)}（${count(id)}）</button>`).join("")}</div>
+    <div class="row" style="gap:8px;margin-top:14px"><input type="text" id="gNew" placeholder="新群組名稱，例如：11/16 課程群組" maxlength="40" style="max-width:280px"><button id="gAdd" class="soft">＋ 新增群組</button></div>
+    ${cur ? `<div class="row" style="gap:8px;margin-top:10px"><input type="text" id="gRename" value="${esc(cur.name)}" maxlength="40" style="max-width:280px"><button id="gSave" class="soft">儲存名稱</button><button id="gDel" class="danger">刪除此群組</button></div>` : ""}</div>
+  <div class="card" style="margin-top:16px"><div class="row between"><h2>填答者結果（${rows.length}）</h2><button class="soft" id="csv" ${rows.length ? "" : "disabled"}>⬇ 匯出 CSV</button></div>
+    <div class="row" style="gap:8px;margin:8px 0"><span class="small muted" id="selCount">已勾選 0 位</span>
+      <select id="bulkGroup" style="max-width:240px"><option value="__" selected disabled>選擇要移入的群組…</option><option value="">未分組（移出群組）</option>${groups.map(g => `<option value="${g.id}">${esc(g.name)}</option>`).join("")}</select>
+      <button class="soft sm" id="bulkMove" disabled>移入群組</button></div>
+    <div class="scroll-x"><table class="tbl"><thead><tr><th><input type="checkbox" id="selAll" aria-label="全選"></th><th>姓名</th><th>群組</th><th>風格</th><th>D</th><th>i</th><th>S</th><th>C</th><th>準確度回饋</th><th>填答時間</th><th></th></tr></thead><tbody>
+    ${rows.map(r => `<tr><td><input type="checkbox" data-sel="${r.id}"></td><td><b>${esc(r.user_name)}</b></td>
+      <td>${r.group_id ? `<span class="pill" style="background:var(--brand)">${esc(gname(r.group_id))}</span>` : `<span class="muted small">未分組</span>`}</td>
+      <td>${r.style ? `<span class="pill t-${r.primary_types[0]}">${esc(styleLabel(r.style))}</span>` : `<span class="muted small">舊版</span>`}</td>
       <td>${r.score_d}</td><td>${r.score_i}</td><td>${r.score_s}</td><td>${r.score_c}</td><td class="small">${rateText(r)}</td><td class="small">${new Date(r.created_at).toLocaleString("zh-TW")}</td>
-      <td><button class="danger sm" data-del="${r.id}">刪除</button></td></tr>`).join("") || `<tr><td colspan="9" class="muted">尚無資料</td></tr>`}</tbody></table></div></div>`;
+      <td><button class="danger sm" data-del="${r.id}">刪除</button></td></tr>`).join("") || `<tr><td colspan="11" class="muted">這個範圍目前沒有填答者</td></tr>`}</tbody></table></div></div>`;
+  // --- 群組管理 ---
+  $$("[data-filter]").forEach(b => b.onclick = () => { resGroup = b.dataset.filter; vResults(); });
+  $("#gAdd").onclick = e => busy(e.target, async () => {
+    const name = $("#gNew").value.trim(); if (!name) return toast("請輸入群組名稱");
+    resGroup = await A("admin_upsert_group", { r: { name } }); toast("已新增群組"); vResults();
+  });
+  if (cur) {
+    $("#gSave").onclick = e => busy(e.target, async () => {
+      const name = $("#gRename").value.trim(); if (!name) return toast("群組名稱不可空白");
+      await A("admin_upsert_group", { r: { id: cur.id, name } }); toast("已儲存"); vResults();
+    });
+    $("#gDel").onclick = e => { if (confirm(`確定刪除群組「${cur.name}」？群組內的填答者不會被刪除，會回到「未分組」。`)) busy(e.target, async () => {
+      await A("admin_delete_group", { p_id: cur.id }); resGroup = "all"; toast("已刪除群組"); vResults(); }); };
+  }
+  // --- 勾選並移入群組 ---
+  const selected = () => $$("[data-sel]:checked").map(c => c.dataset.sel);
+  const refreshSel = () => { const n = selected().length; $("#selCount").textContent = `已勾選 ${n} 位`; $("#bulkMove").disabled = !n || $("#bulkGroup").value === "__"; $("#selAll").checked = rows.length > 0 && n === rows.length; };
+  $$("[data-sel]").forEach(c => c.onchange = refreshSel);
+  $("#selAll").onchange = e => { $$("[data-sel]").forEach(c => c.checked = e.target.checked); refreshSel(); };
+  $("#bulkGroup").onchange = refreshSel;
+  $("#bulkMove").onclick = e => busy(e.target, async () => {
+    const v = $("#bulkGroup").value, ids = selected(); if (!ids.length || v === "__") return;
+    await A("admin_set_results_group", { p_ids: ids, p_group: v || null });
+    toast(v ? `已將 ${ids.length} 位移入「${gname(v)}」` : `已將 ${ids.length} 位移出群組`); vResults();
+  });
+  // --- 刪除單筆／匯出 ---
   $$("[data-del]").forEach(b => b.onclick = () => { const r = rows.find(x => x.id === b.dataset.del); if (confirm(`確定刪除「${r.user_name}」的測評結果？此動作無法復原。`)) busy(b, async () => { await A("admin_delete_result", { p_id: b.dataset.del }); toast("已刪除"); vResults(); }); });
   $("#csv").onclick = () => {
-    const head = ["姓名", "風格", "主型", "輔型", "D", "i", "S", "C", "準確度回饋(1-5)", "填答時間"];
-    const body = rows.map(r => [r.user_name, r.style ? styleLabel(r.style) : "", r.primary_types[0], r.primary_types[1] || "", r.score_d, r.score_i, r.score_s, r.score_c, r.accuracy_feedback || "", new Date(r.created_at).toLocaleString("zh-TW")]);
+    const head = ["姓名", "群組", "風格", "主型", "輔型", "D", "i", "S", "C", "準確度回饋(1-5)", "填答時間"];
+    const body = rows.map(r => [r.user_name, gname(r.group_id), r.style ? styleLabel(r.style) : "", r.primary_types[0], r.primary_types[1] || "", r.score_d, r.score_i, r.score_s, r.score_c, r.accuracy_feedback || "", new Date(r.created_at).toLocaleString("zh-TW")]);
     const csv = [head, ...body].map(l => l.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\r\n");
-    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv" })); a.download = "disc_results.csv"; a.click();
+    const scope = resGroup === "all" ? "" : "_" + (resGroup === "none" ? "未分組" : gname(resGroup)).replace(/[\\/:*?"<>|]/g, "-");
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv" })); a.download = `disc_results${scope}.csv`; a.click();
   };
 }
 
 /* ---------- 彙總報表 ---------- */
 async function vReport() {
-  const rows = (await A("admin_list_results"));
+  const { groups, rows, count } = await loadResults();
   const n = rows.length;
-  if (!n) { $("#view").innerHTML = `<div class="card"><h2>彙總報表</h2><p class="muted">尚無填答資料。</p></div>`; return; }
+  const scopeCard = `<div class="card"><div class="row" style="gap:10px"><b>統計範圍</b><select id="repGroup" style="max-width:280px">${[["all", "全部填答者"], ["none", "未分組"], ...groups.map(g => [g.id, g.name])]
+    .map(([id, name]) => `<option value="${esc(id)}" ${resGroup === id ? "selected" : ""}>${esc(name)}（${count(id)}）</option>`).join("")}</select></div></div>`;
+  const bindScope = () => { $("#repGroup").onchange = e => { resGroup = e.target.value; vReport(); }; };
+  if (!n) { $("#view").innerHTML = scopeCard + `<div class="card" style="margin-top:16px"><h2>彙總報表</h2><p class="muted">這個範圍目前沒有填答資料。</p></div>`; bindScope(); return; }
   const avg = { D: 0, I: 0, S: 0, C: 0 }; rows.forEach(r => { avg.D += r.score_d; avg.I += r.score_i; avg.S += r.score_s; avg.C += r.score_c; }); TYPES.forEach(t => avg[t] = Math.round(avg[t] / n));
   const prim = { D: 0, I: 0, S: 0, C: 0 }; rows.forEach(r => prim[r.primary_types[0]]++);
   const sty = Object.fromEntries(STYLES.map(s => [s, 0])); rows.forEach(r => { if (r.style && sty[r.style] !== undefined) sty[r.style]++; });
@@ -292,7 +374,7 @@ async function vReport() {
   const rateCount = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }; rated.forEach(r => rateCount[r.accuracy_feedback]++);
   const avgRate = rated.length ? (rated.reduce((s, r) => s + r.accuracy_feedback, 0) / rated.length).toFixed(1) : null;
   const maxRate = Math.max(1, ...Object.values(rateCount));
-  $("#view").innerHTML = `<div class="grid c2">
+  $("#view").innerHTML = scopeCard + `<div class="grid c2" style="margin-top:16px">
     <div class="card"><h2>主型人數分布（共 ${n} 人）</h2>${TYPES.map(t => `<div class="bar-row t-${t}"><b>${TLABEL[t]} ${TNAME[t]}</b><div class="track"><div class="fill" style="width:${prim[t] / n * 100}%"></div></div><span>${prim[t]}人</span></div>`).join("")}</div>
     <div class="card"><h2>全體平均分數</h2>${barsHtml(avg)}</div></div>
   <div class="card" style="margin-top:16px"><h2>DiSC 分布圖</h2><p class="muted">每個點代表一位填答者，位置依其 D／i／S／C 分數計算；分數雷同的填答者會合併成同一個圓圈並標示人數，滑鼠移到點上可看到所有人的姓名。</p>
@@ -303,6 +385,7 @@ async function vReport() {
       : `<p class="muted">目前還沒有人回饋。</p>`}</div>
   <div class="card" style="margin-top:16px"><h2>12 種風格分布</h2>${STYLES.map(s => `<div class="bar-row t-${styleParts(s).p}" style="grid-template-columns:70px 1fr 44px"><b>${styleLabel(s)}</b><div class="track"><div class="fill" style="width:${sty[s] / maxS * 100}%"></div></div><span>${sty[s]}人</span></div>`).join("")}
     <p class="muted small">僅統計使用新版測評（含風格代碼）的紀錄。</p></div>`;
+  bindScope();
 }
 
 /* ---------- 計分邏輯 ---------- */
