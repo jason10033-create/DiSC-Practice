@@ -152,7 +152,6 @@ async function vTools() {
       <td class="small">${new Date(a.updated_at).toLocaleDateString("zh-TW")}</td>
       <td><button class="soft sm" data-edit="${a.id}">編輯</button> <button class="danger sm" data-del="${a.id}">刪除</button></td></tr>`;
   $("#view").innerHTML = `<div class="card"><h2>教材分類</h2>
-    <p class="muted">學員在「解密工具」會依分類分區顯示教材。可新增、改名、調整順序或刪除分類（刪除分類不會刪除教材，教材會變成「未分類」）。</p>
     ${cats.map((c, i) => `<div class="row" style="gap:8px;margin-top:8px">
       <button class="ghost sm" data-catup="${c.id}" ${i === 0 ? "disabled" : ""}>↑</button><button class="ghost sm" data-catdown="${c.id}" ${i === cats.length - 1 ? "disabled" : ""}>↓</button>
       <input type="text" data-catname="${c.id}" value="${esc(c.name)}" maxlength="40" style="max-width:240px">
@@ -160,7 +159,6 @@ async function vTools() {
       <span class="small muted">${groups.find(g => g.cat && g.cat.id === c.id).items.length} 篇教材</span></div>`).join("") || `<p class="muted">目前沒有分類。</p>`}
     <div class="row" style="gap:8px;margin-top:14px"><input type="text" id="newCat" placeholder="新分類名稱，例如：實務應用" maxlength="40" style="max-width:280px"><button id="addCat" class="soft">＋ 新增分類</button></div></div>
   <div class="card" style="margin-top:16px"><div class="row between"><h2>教材列表</h2><button id="newArt">＋ 新增教材</button></div>
-    <p class="muted">學員在「解密工具」看到的內容。可用文字、圖片、影片、PDF、提示框、連結組成；用「分類」欄位可直接調整教材所屬分類。</p>
     <div class="scroll-x"><table class="tbl"><thead><tr><th>順序</th><th>標題</th><th>分類</th><th>狀態</th><th>更新</th><th></th></tr></thead><tbody>
     ${groups.map(g => `<tr class="cathead"><td colspan="6">${g.cat ? esc(g.cat.name) : "未分類"}（${g.items.length}）</td></tr>${g.items.map((a, i) => artRow(a, i, g.items.length)).join("") || `<tr><td colspan="6" class="muted small">這個分類目前沒有教材</td></tr>`}`).join("")}
     </tbody></table></div></div>`;
