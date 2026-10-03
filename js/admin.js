@@ -308,7 +308,6 @@ async function vResults() {
   const filters = [["all", "全部"], ["none", "未分組"], ...groups.map(g => [g.id, g.name])];
   const rateText = r => r.accuracy_feedback || `<span class="muted">-</span>`;
   $("#view").innerHTML = `<div class="card"><h2>填答者群組</h2>
-    <p class="muted">建立群組（例如「HR測試群組」「11/16 課程群組」），再把填答者移入，方便分開檢視與統計。刪除群組不會刪除填答者，成員會回到「未分組」。</p>
     <div class="row" style="gap:8px">${filters.map(([id, name]) => `<button class="${resGroup === id ? "" : "ghost"} sm" data-filter="${esc(id)}">${esc(name)}（${count(id)}）</button>`).join("")}</div>
     <div class="row" style="gap:8px;margin-top:14px"><input type="text" id="gNew" placeholder="新群組名稱，例如：11/16 課程群組" maxlength="40" style="max-width:280px"><button id="gAdd" class="soft">＋ 新增群組</button></div>
     ${cur ? `<div class="row" style="gap:8px;margin-top:10px"><input type="text" id="gRename" value="${esc(cur.name)}" maxlength="40" style="max-width:280px"><button id="gSave" class="soft">儲存名稱</button><button id="gDel" class="danger">刪除此群組</button></div>` : ""}</div>
